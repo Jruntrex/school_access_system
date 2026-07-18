@@ -10,7 +10,7 @@ never persisted to the database (see spec section 3.3).
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -98,7 +98,7 @@ def assign_card(raw_uid: str, student: Student) -> RfidCardAssignment:
             f"Card is already assigned to student #{existing_for_card.student_id}"
         )
 
-    now = timezone.now()
+    today = date.today()
 
     current = (
         RfidCardAssignment.objects.select_for_update()
@@ -110,12 +110,12 @@ def assign_card(raw_uid: str, student: Student) -> RfidCardAssignment:
             stop_assign_mode()
             return current
         current.status = "ENDED"
-        current.assigned_to = now
+        current.assigned_to = today
         current.end_reason = RfidCardAssignment.EndReason.REPLACED
         current.save(update_fields=["status", "assigned_to", "end_reason"])
 
     assignment = RfidCardAssignment.objects.create(
-        card=card, student=student, assigned_from=now, status="ACTIVE"
+        card=card, student=student, assigned_from=today, status="ACTIVE"
     )
     stop_assign_mode()
     return assignment
@@ -137,15 +137,14 @@ def end_card_assignment(
     if assignment is None:
         return
 
-    now = timezone.now()
     assignment.status = "ENDED"
-    assignment.assigned_to = now
+    assignment.assigned_to = date.today()
     assignment.end_reason = reason
     assignment.save(update_fields=["status", "assigned_to", "end_reason"])
 
     if reason in (RfidCardAssignment.EndReason.LOST, RfidCardAssignment.EndReason.DAMAGED):
         card = assignment.card
         card.status = reason
-        card.deactivated_at = now
+        card.deactivated_at = timezone.now()
         card.deactivation_reason = reason
         card.save(update_fields=["status", "deactivated_at", "deactivation_reason"])

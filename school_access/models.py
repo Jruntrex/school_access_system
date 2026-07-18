@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import Q, UniqueConstraint
 
 # ==========================================
-# Shared status vocabularies (see spec section 5)
+# Shared status vocabularies (see school_access_schema.sql)
 # ==========================================
 
 
@@ -11,8 +11,28 @@ class ActiveEndedStatus(models.TextChoices):
     ENDED = "ENDED", "Ended"
 
 
+class EndReason(models.TextChoices):
+    """Shared by rfid_cards.deactivation_reason and
+    rfid_card_assignments.end_reason."""
+
+    LOST = "LOST", "Lost"
+    DAMAGED = "DAMAGED", "Damaged"
+    REPLACED = "REPLACED", "Replaced"
+    STUDENT_LEFT = "STUDENT_LEFT", "Student left"
+    OTHER = "OTHER", "Other"
+
+
+def schema_table(name: str) -> str:
+    """Pre-quoted "school_access"."name" — Django's postgres quote_name()
+    passes an already-quoted identifier through unchanged, so this is how
+    a real dedicated schema (rather than the default "public") is achieved
+    without a second database connection/router.
+    """
+    return f'"school_access"."{name}"'
+
+
 # ==========================================
-# 5.1 academic_years
+# 1. academic_years
 # ==========================================
 
 
@@ -21,13 +41,15 @@ class AcademicYear(models.Model):
     starts_on = models.DateField()
     ends_on = models.DateField()
     is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "academic_years"
+        db_table = schema_table("academic_years")
         constraints = [
             models.CheckConstraint(
                 condition=Q(starts_on__lt=models.F("ends_on")),
-                name="academic_year_starts_before_ends",
+                name="chk_academic_years_dates",
             ),
         ]
         ordering = ["-starts_on"]
@@ -37,7 +59,7 @@ class AcademicYear(models.Model):
 
 
 # ==========================================
-# 5.2 classes
+# 2. classes
 # ==========================================
 
 
@@ -50,22 +72,28 @@ class SchoolClass(models.Model):
         AcademicYear, on_delete=models.PROTECT, related_name="classes"
     )
     grade = models.PositiveSmallIntegerField()
-    letter = models.CharField(max_length=8)
+    letter = models.CharField(max_length=5)
     name = models.CharField(max_length=20)
     status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.ACTIVE
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "classes"
+        db_table = schema_table("classes")
         constraints = [
             UniqueConstraint(
                 fields=["academic_year", "grade", "letter"],
-                name="unique_class_per_academic_year",
+                name="uq_classes_year_grade_letter",
+            ),
+            models.CheckConstraint(
+                condition=Q(grade__gte=1) & Q(grade__lte=12),
+                name="chk_classes_grade",
             ),
         ]
         indexes = [
-            models.Index(fields=["academic_year"], name="idx_classes_academic_year"),
+            models.Index(fields=["academic_year"], name="idx_classes_academic_year_id"),
         ]
         ordering = ["grade", "letter"]
 
@@ -74,7 +102,7 @@ class SchoolClass(models.Model):
 
 
 # ==========================================
-# 5.3 students
+# 3. students
 # ==========================================
 
 
@@ -87,11 +115,13 @@ class Student(models.Model):
     last_name = models.CharField(max_length=100)
     first_name = models.CharField(max_length=100)
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.ACTIVE
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "students"
+        db_table = schema_table("students")
         indexes = [
             models.Index(fields=["last_name", "first_name"], name="idx_students_name"),
         ]
@@ -102,7 +132,7 @@ class Student(models.Model):
 
 
 # ==========================================
-# 5.4 student_class_enrollments
+# 4. student_class_enrollments
 # ==========================================
 
 
@@ -111,27 +141,37 @@ class StudentClassEnrollment(models.Model):
         Student, on_delete=models.CASCADE, related_name="class_enrollments"
     )
     school_class = models.ForeignKey(
-        SchoolClass, on_delete=models.PROTECT, related_name="enrollments"
+        SchoolClass,
+        on_delete=models.PROTECT,
+        related_name="enrollments",
+        db_column="class_id",
     )
     valid_from = models.DateField()
     valid_to = models.DateField(null=True, blank=True)
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ActiveEndedStatus.choices,
         default=ActiveEndedStatus.ACTIVE,
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "student_class_enrollments"
+        db_table = schema_table("student_class_enrollments")
         constraints = [
             UniqueConstraint(
                 fields=["student"],
                 condition=Q(status="ACTIVE"),
-                name="unique_active_class_enrollment_per_student",
+                name="uq_student_active_class_enrollment",
+            ),
+            models.CheckConstraint(
+                condition=Q(valid_to__isnull=True) | Q(valid_to__gte=models.F("valid_from")),
+                name="chk_student_class_enrollments_dates",
             ),
         ]
         indexes = [
-            models.Index(fields=["school_class"], name="idx_enrollments_class"),
+            models.Index(fields=["student"], name="idx_sce_student_id"),
+            models.Index(fields=["school_class"], name="idx_sce_class_id"),
         ]
         ordering = ["-valid_from"]
 
@@ -140,7 +180,7 @@ class StudentClassEnrollment(models.Model):
 
 
 # ==========================================
-# 5.5 meal_options
+# 5. meal_options
 # ==========================================
 
 
@@ -149,11 +189,14 @@ class MealOption(models.Model):
     NO_MEAL = "NO_MEAL"
     SPECIAL = "SPECIAL"
 
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "meal_options"
+        db_table = schema_table("meal_options")
         ordering = ["code"]
 
     def __str__(self) -> str:
@@ -161,7 +204,7 @@ class MealOption(models.Model):
 
 
 # ==========================================
-# 5.6 student_meal_assignments
+# 6. student_meal_assignments
 # ==========================================
 
 
@@ -175,19 +218,29 @@ class StudentMealAssignment(models.Model):
     valid_from = models.DateField()
     valid_to = models.DateField(null=True, blank=True)
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ActiveEndedStatus.choices,
         default=ActiveEndedStatus.ACTIVE,
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "student_meal_assignments"
+        db_table = schema_table("student_meal_assignments")
         constraints = [
             UniqueConstraint(
                 fields=["student"],
                 condition=Q(status="ACTIVE"),
-                name="unique_active_meal_assignment_per_student",
+                name="uq_student_active_meal_assignment",
             ),
+            models.CheckConstraint(
+                condition=Q(valid_to__isnull=True) | Q(valid_to__gte=models.F("valid_from")),
+                name="chk_student_meal_assignments_dates",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["student"], name="idx_sma_student_id"),
+            models.Index(fields=["meal_option"], name="idx_sma_meal_id"),
         ]
         ordering = ["-valid_from"]
 
@@ -196,7 +249,7 @@ class StudentMealAssignment(models.Model):
 
 
 # ==========================================
-# 5.7 rfid_cards
+# 7. rfid_cards
 # ==========================================
 
 
@@ -207,15 +260,21 @@ class RfidCard(models.Model):
         DAMAGED = "DAMAGED", "Damaged"
         RETIRED = "RETIRED", "Retired"
 
-    card_uid_hash = models.CharField(max_length=64, unique=True)
+    card_uid_hash = models.CharField(max_length=128, unique=True)
     status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.ACTIVE
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
+    created_at = models.DateTimeField(auto_now_add=True)
     deactivated_at = models.DateTimeField(null=True, blank=True)
-    deactivation_reason = models.CharField(max_length=200, blank=True)
+    deactivation_reason = models.CharField(
+        max_length=30, choices=EndReason.choices, null=True, blank=True
+    )
 
     class Meta:
-        db_table = "rfid_cards"
+        db_table = schema_table("rfid_cards")
+        indexes = [
+            models.Index(fields=["status"], name="idx_rfid_cards_status"),
+        ]
         ordering = ["-id"]
 
     def __str__(self) -> str:
@@ -223,17 +282,12 @@ class RfidCard(models.Model):
 
 
 # ==========================================
-# 5.8 rfid_card_assignments
+# 8. rfid_card_assignments
 # ==========================================
 
 
 class RfidCardAssignment(models.Model):
-    class EndReason(models.TextChoices):
-        LOST = "LOST", "Lost"
-        DAMAGED = "DAMAGED", "Damaged"
-        REPLACED = "REPLACED", "Replaced"
-        STUDENT_LEFT = "STUDENT_LEFT", "Student left"
-        OTHER = "OTHER", "Other"
+    EndReason = EndReason
 
     card = models.ForeignKey(
         RfidCard, on_delete=models.CASCADE, related_name="assignments"
@@ -241,30 +295,40 @@ class RfidCardAssignment(models.Model):
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="card_assignments"
     )
-    assigned_from = models.DateTimeField()
-    assigned_to = models.DateTimeField(null=True, blank=True)
+    assigned_from = models.DateField()
+    assigned_to = models.DateField(null=True, blank=True)
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ActiveEndedStatus.choices,
         default=ActiveEndedStatus.ACTIVE,
     )
     end_reason = models.CharField(
-        max_length=20, choices=EndReason.choices, blank=True
+        max_length=30, choices=EndReason.choices, null=True, blank=True
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "rfid_card_assignments"
+        db_table = schema_table("rfid_card_assignments")
         constraints = [
             UniqueConstraint(
                 fields=["card"],
                 condition=Q(status="ACTIVE"),
-                name="unique_active_assignment_per_card",
+                name="uq_active_assignment_per_card",
             ),
             UniqueConstraint(
                 fields=["student"],
                 condition=Q(status="ACTIVE"),
-                name="unique_active_assignment_per_student",
+                name="uq_active_assignment_per_student",
             ),
+            models.CheckConstraint(
+                condition=Q(assigned_to__isnull=True) | Q(assigned_to__gte=models.F("assigned_from")),
+                name="chk_rfid_card_assignments_dates",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["card"], name="idx_rca_card_id"),
+            models.Index(fields=["student"], name="idx_rca_student_id"),
         ]
         ordering = ["-assigned_from"]
 
@@ -273,16 +337,18 @@ class RfidCardAssignment(models.Model):
 
 
 # ==========================================
-# 5.9 reader_locations
+# 9. reader_locations
 # ==========================================
 
 
 class ReaderLocation(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    description = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "reader_locations"
+        db_table = schema_table("reader_locations")
         ordering = ["name"]
 
     def __str__(self) -> str:
@@ -290,7 +356,7 @@ class ReaderLocation(models.Model):
 
 
 # ==========================================
-# 5.10 rfid_readers
+# 10. rfid_readers
 # ==========================================
 
 
@@ -309,13 +375,19 @@ class RfidReader(models.Model):
     location = models.ForeignKey(
         ReaderLocation, on_delete=models.PROTECT, related_name="readers"
     )
-    purpose = models.CharField(max_length=15, choices=Purpose.choices)
+    purpose = models.CharField(max_length=30, choices=Purpose.choices)
     status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.ACTIVE
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "rfid_readers"
+        db_table = schema_table("rfid_readers")
+        indexes = [
+            models.Index(fields=["location"], name="idx_rfid_readers_location_id"),
+            models.Index(fields=["purpose"], name="idx_rfid_readers_purpose"),
+        ]
         ordering = ["code"]
 
     def __str__(self) -> str:
@@ -323,7 +395,7 @@ class RfidReader(models.Model):
 
 
 # ==========================================
-# 5.11 access_events
+# 11. access_events
 # ==========================================
 
 
@@ -344,9 +416,9 @@ class AccessEvent(models.Model):
         NO_ACTIVE_ASSIGNMENT = "NO_ACTIVE_ASSIGNMENT", "No active assignment"
 
     event_time = models.DateTimeField()
-    event_type = models.CharField(max_length=15, choices=EventType.choices)
-    event_source = models.CharField(max_length=20, choices=EventSource.choices)
-    event_status = models.CharField(max_length=25, choices=EventStatus.choices)
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    event_source = models.CharField(max_length=30, choices=EventSource.choices)
+    event_status = models.CharField(max_length=30, choices=EventStatus.choices)
 
     reader = models.ForeignKey(
         RfidReader,
@@ -355,7 +427,7 @@ class AccessEvent(models.Model):
         blank=True,
         related_name="events",
     )
-    scanned_card_uid_hash = models.CharField(max_length=64, null=True, blank=True)
+    scanned_card_uid_hash = models.CharField(max_length=128, null=True, blank=True)
     card = models.ForeignKey(
         RfidCard,
         on_delete=models.SET_NULL,
@@ -377,17 +449,29 @@ class AccessEvent(models.Model):
         blank=True,
         related_name="access_events",
     )
-    notes = models.TextField(blank=True)
+    notes = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "access_events"
+        db_table = schema_table("access_events")
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(event_source="RFID_READER") | Q(reader__isnull=False),
+                name="chk_access_events_rfid_fields",
+            ),
+            models.CheckConstraint(
+                condition=~Q(event_source="MANUAL_BY_GUARD") | Q(student__isnull=False),
+                name="chk_access_events_manual_fields",
+            ),
+        ]
         indexes = [
-            models.Index(fields=["event_time"], name="idx_events_time"),
-            models.Index(fields=["student", "event_time"], name="idx_events_student_time"),
-            models.Index(fields=["reader", "event_time"], name="idx_events_reader_time"),
-            models.Index(fields=["card", "event_time"], name="idx_events_card_time"),
+            models.Index(fields=["event_time"], name="idx_access_events_event_time"),
+            models.Index(fields=["student", "event_time"], name="idx_access_events_student_time"),
+            models.Index(fields=["reader", "event_time"], name="idx_access_events_reader_time"),
+            models.Index(fields=["card", "event_time"], name="idx_access_events_card_time"),
+            models.Index(fields=["event_status"], name="idx_access_events_status"),
             models.Index(
-                fields=["scanned_card_uid_hash"], name="idx_events_scanned_hash"
+                fields=["scanned_card_uid_hash"], name="idx_access_events_uid_hash"
             ),
         ]
         ordering = ["-event_time"]
@@ -397,7 +481,7 @@ class AccessEvent(models.Model):
 
 
 # ==========================================
-# 5.12 attendance_daily
+# 12. attendance_daily
 # ==========================================
 
 
@@ -407,30 +491,38 @@ class AttendanceDaily(models.Model):
         Student, on_delete=models.CASCADE, related_name="attendance_records"
     )
     school_class = models.ForeignKey(
-        SchoolClass, on_delete=models.PROTECT, related_name="attendance_records"
+        SchoolClass,
+        on_delete=models.PROTECT,
+        related_name="attendance_records",
+        db_column="class_id",
     )
     first_entry_time = models.DateTimeField()
     first_entry_event = models.ForeignKey(
-        AccessEvent, on_delete=models.PROTECT, related_name="+"
+        AccessEvent,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_column="first_entry_event_id",
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "attendance_daily"
+        db_table = schema_table("attendance_daily")
         constraints = [
             UniqueConstraint(
                 fields=["attendance_date", "student"],
-                name="unique_attendance_per_day",
+                name="uq_attendance_daily_date_student",
             ),
         ]
         indexes = [
-            models.Index(fields=["attendance_date"], name="idx_attendance_date"),
+            models.Index(fields=["attendance_date"], name="idx_attendance_daily_date"),
             models.Index(
                 fields=["school_class", "attendance_date"],
-                name="idx_attendance_class_date",
+                name="idx_att_daily_class_date",
             ),
             models.Index(
                 fields=["student", "attendance_date"],
-                name="idx_attendance_student_date",
+                name="idx_att_daily_student_date",
             ),
         ]
         ordering = ["-attendance_date"]
