@@ -1,25 +1,21 @@
-<!doctype html>
-<html lang="uk">
-<head>
-<meta charset="utf-8">
-<title>Meal report — {{ report_date }}</title>
-<script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 text-slate-900 p-6">
+{% extends "school_access/base.html" %}
+{% block title %}Харчовий звіт — {{ report_date }}{% endblock %}
+{% block content %}
+
   <div class="flex items-center justify-between mb-4">
-    <h1 class="text-2xl font-bold">Meal report — {{ report_date }}</h1>
+    <h1 class="text-2xl font-bold">Харчовий звіт — {{ report_date }}</h1>
     <a class="px-3 py-1.5 rounded bg-slate-700 text-white text-sm"
-       href="?date={{ report_date|date:'Y-m-d' }}&format=csv">Export CSV</a>
+       href="?date={{ report_date|date:'Y-m-d' }}&format=csv">Експорт CSV</a>
   </div>
 
   <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
     <thead class="bg-slate-100 text-left">
       <tr>
-        <th class="p-2">Class</th>
-        <th class="p-2">Last name</th>
-        <th class="p-2">First name</th>
-        <th class="p-2">Entry time</th>
-        <th class="p-2">Meal option</th>
+        <th class="p-2">Клас</th>
+        <th class="p-2">Прізвище</th>
+        <th class="p-2">Ім'я</th>
+        <th class="p-2">Час входу</th>
+        <th class="p-2">Харчування</th>
       </tr>
     </thead>
     <tbody>
@@ -32,9 +28,8 @@
         <td class="p-2">{{ row.student__meal_assignments__meal_option__name }}</td>
       </tr>
       {% empty %}
-      <tr><td class="p-4 text-slate-400" colspan="5">No students present yet.</td></tr>
+      <tr><td class="p-4 text-slate-400" colspan="5">Поки немає присутніх учнів.</td></tr>
       {% endfor %}
     </tbody>
   </table>
-</body>
-</html>
+{% endblock %}

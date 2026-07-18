@@ -10,6 +10,30 @@ from school_access.models import RfidCardAssignment, Student
 
 
 @staff_member_required
+def dashboard_view(request):
+    today = date_cls.today()
+
+    present_count = len(selectors.present_students(today))
+    absent_count = len(selectors.absent_students(today))
+    meal_count = len(selectors.daily_meal_report(today))
+    no_card_count = len(selectors.students_without_active_card())
+    problematic_today = (
+        selectors.problematic_card_events().filter(event_time__date=today).count()
+    )
+
+    context = {
+        "active_page": "dashboard",
+        "today": today,
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "meal_count": meal_count,
+        "no_card_count": no_card_count,
+        "problematic_today": problematic_today,
+    }
+    return render(request, "school_access/dashboard.html", context)
+
+
+@staff_member_required
 def card_assignment_view(request):
     students = (
         Student.objects.filter(status=Student.Status.ACTIVE)
@@ -34,7 +58,11 @@ def card_assignment_view(request):
             }
         )
 
-    context = {"rows": rows, "end_reasons": RfidCardAssignment.EndReason.choices}
+    context = {
+        "active_page": "cards",
+        "rows": rows,
+        "end_reasons": RfidCardAssignment.EndReason.choices,
+    }
     return render(request, "school_access/card_assignment.html", context)
 
 
@@ -63,5 +91,5 @@ def meal_report_view(request):
             )
         return response
 
-    context = {"report_date": report_date, "rows": rows}
+    context = {"active_page": "meal_report", "report_date": report_date, "rows": rows}
     return render(request, "school_access/meal_report.html", context)

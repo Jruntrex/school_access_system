@@ -1,29 +1,25 @@
-<!doctype html>
-<html lang="uk">
-<head>
-<meta charset="utf-8">
-<title>RFID cards</title>
-<script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 text-slate-900 p-6">
-  <h1 class="text-2xl font-bold mb-4">RFID card assignment</h1>
+{% extends "school_access/base.html" %}
+{% block title %}RFID картки — School Access{% endblock %}
+{% block content %}
+
+  <h1 class="text-2xl font-bold mb-4">RFID картки</h1>
 
   <div id="scan-panel" class="mb-6 p-4 rounded-lg border border-slate-300 bg-white hidden">
-    <p class="text-sm text-slate-600">Waiting for a card scan for
+    <p class="text-sm text-slate-600">Очікую скан картки для
       <strong id="scan-target-name"></strong>...</p>
-    <p class="text-xs text-slate-400 mt-1">Scanned UID: <span id="scan-uid">-</span></p>
+    <p class="text-xs text-slate-400 mt-1">Зчитаний UID: <span id="scan-uid">-</span></p>
     <div class="mt-3 flex gap-2">
-      <button id="confirm-btn" class="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-40" disabled>Confirm</button>
-      <button id="cancel-btn" class="px-3 py-1.5 rounded bg-slate-200 text-sm">Cancel</button>
+      <button id="confirm-btn" class="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-40" disabled>Підтвердити</button>
+      <button id="cancel-btn" class="px-3 py-1.5 rounded bg-slate-200 text-sm">Скасувати</button>
     </div>
   </div>
 
   <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
     <thead class="bg-slate-100 text-left">
       <tr>
-        <th class="p-2">Student</th>
-        <th class="p-2">Class</th>
-        <th class="p-2">Card</th>
+        <th class="p-2">Учень</th>
+        <th class="p-2">Клас</th>
+        <th class="p-2">Картка</th>
         <th class="p-2"></th>
       </tr>
     </thead>
@@ -34,19 +30,21 @@
         <td class="p-2">{{ row.school_class|default:"-" }}</td>
         <td class="p-2">
           {% if row.has_card %}
-            <span class="text-emerald-600">assigned</span>
+            <span class="text-emerald-600">прив'язана</span>
           {% else %}
-            <span class="text-slate-400">none</span>
+            <span class="text-slate-400">немає</span>
           {% endif %}
         </td>
         <td class="p-2 text-right">
           <button class="assign-btn px-3 py-1 rounded bg-indigo-600 text-white text-xs"
                   data-student-id="{{ row.student.id }}"
                   data-student-name="{{ row.student.last_name }} {{ row.student.first_name }}">
-            {% if row.has_card %}Replace card{% else %}Assign card{% endif %}
+            {% if row.has_card %}Замінити картку{% else %}Прив'язати картку{% endif %}
           </button>
         </td>
       </tr>
+      {% empty %}
+      <tr><td class="p-4 text-slate-400" colspan="4">Учнів не знайдено.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -114,5 +112,4 @@ cancelBtn.addEventListener('click', async () => {
   panel.classList.add('hidden');
 });
 </script>
-</body>
-</html>
+{% endblock %}

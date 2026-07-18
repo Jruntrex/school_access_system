@@ -1,0 +1,55 @@
+{% extends "school_access/base.html" %}
+{% block title %}Дашборд — School Access{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-1">Дашборд</h1>
+<p class="text-sm text-slate-500 mb-6">{{ today }}</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+
+  <a href="{% url 'school_access:meal_report' %}"
+     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
+    <div class="text-3xl font-black text-emerald-600">{{ present_count }}</div>
+    <div class="text-sm text-slate-500 mt-1">Присутні сьогодні</div>
+  </a>
+
+  <div class="p-4 rounded-lg border border-slate-200 bg-white">
+    <div class="text-3xl font-black text-rose-500">{{ absent_count }}</div>
+    <div class="text-sm text-slate-500 mt-1">Відсутні сьогодні</div>
+  </div>
+
+  <a href="{% url 'school_access:meal_report' %}"
+     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
+    <div class="text-3xl font-black text-indigo-600">{{ meal_count }}</div>
+    <div class="text-sm text-slate-500 mt-1">У харчовому списку</div>
+  </a>
+
+  <a href="{% url 'school_access:card_assignment' %}"
+     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
+    <div class="text-3xl font-black text-amber-600">{{ no_card_count }}</div>
+    <div class="text-sm text-slate-500 mt-1">Учнів без картки</div>
+  </a>
+
+  <div class="p-4 rounded-lg border border-slate-200 bg-white">
+    <div class="text-3xl font-black {% if problematic_today %}text-rose-500{% else %}text-slate-300{% endif %}">
+      {{ problematic_today }}
+    </div>
+    <div class="text-sm text-slate-500 mt-1">Проблемні скани сьогодні</div>
+  </div>
+
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <a href="{% url 'school_access:card_assignment' %}"
+     class="p-5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
+    <div class="font-semibold text-slate-800">RFID картки →</div>
+    <div class="text-sm text-slate-500 mt-1">Прив'язати або замінити картку учню</div>
+  </a>
+  <a href="{% url 'school_access:meal_report' %}"
+     class="p-5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
+    <div class="font-semibold text-slate-800">Харчовий звіт →</div>
+    <div class="text-sm text-slate-500 mt-1">Список присутніх учнів по класах, з експортом у CSV</div>
+  </a>
+</div>
+
+{% endblock %}
