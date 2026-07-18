@@ -1,0 +1,52 @@
+{% extends "school_access/base.html" %}
+{% block title %}Учні — School Access{% endblock %}
+{% block content %}
+
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">Учні</h1>
+    <div class="flex gap-2">
+      <a href="{% url 'school_access:students_import' %}"
+         class="px-3 py-1.5 rounded bg-slate-200 text-sm">Імпорт з CSV</a>
+      <a href="{% url 'school_access:student_create' %}"
+         class="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm">+ Додати учня</a>
+    </div>
+  </div>
+
+  <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
+    <thead class="bg-slate-100 text-left">
+      <tr>
+        <th class="p-2">Прізвище</th>
+        <th class="p-2">Ім'я</th>
+        <th class="p-2">Клас</th>
+        <th class="p-2">Харчування</th>
+        <th class="p-2">Статус</th>
+        <th class="p-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-t border-slate-100">
+        <td class="p-2">{{ row.student.last_name }}</td>
+        <td class="p-2">{{ row.student.first_name }}</td>
+        <td class="p-2">{{ row.school_class|default:"-" }}</td>
+        <td class="p-2">{{ row.meal_option|default:"-" }}</td>
+        <td class="p-2">
+          {% if row.student.status == "ACTIVE" %}
+            <span class="text-emerald-600">активний</span>
+          {% elif row.student.status == "LEFT_SCHOOL" %}
+            <span class="text-slate-400">вибув</span>
+          {% else %}
+            <span class="text-amber-600">неактивний</span>
+          {% endif %}
+        </td>
+        <td class="p-2 text-right">
+          <a href="{% url 'school_access:student_edit' row.student.id %}"
+             class="px-3 py-1 rounded bg-slate-200 text-xs">Редагувати</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td class="p-4 text-slate-400" colspan="6">Учнів ще немає.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

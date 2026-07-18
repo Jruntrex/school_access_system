@@ -420,9 +420,12 @@ class AccessEvent(models.Model):
     event_source = models.CharField(max_length=30, choices=EventSource.choices)
     event_status = models.CharField(max_length=30, choices=EventStatus.choices)
 
+    # PROTECT, not SET_NULL: chk_access_events_rfid_fields requires reader_id
+    # to stay set for RFID_READER-sourced rows, so nulling it out on delete
+    # would violate the constraint. Readers are deactivated, not deleted.
     reader = models.ForeignKey(
         RfidReader,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="events",
@@ -442,9 +445,12 @@ class AccessEvent(models.Model):
         blank=True,
         related_name="events",
     )
+    # PROTECT, not SET_NULL: chk_access_events_manual_fields requires
+    # student_id to stay set for MANUAL_BY_GUARD rows. Students are never
+    # hard-deleted in this system — see Student.Status.LEFT_SCHOOL.
     student = models.ForeignKey(
         Student,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="access_events",

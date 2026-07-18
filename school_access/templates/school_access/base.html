@@ -9,12 +9,24 @@
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
 
   <header class="bg-slate-900 text-white">
-    <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+    <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14 flex-wrap">
       <a href="{% url 'school_access:dashboard' %}" class="font-bold text-lg tracking-tight">School Access</a>
-      <nav class="flex items-center gap-1 text-sm">
+      <nav class="flex items-center gap-1 text-sm flex-wrap">
         <a href="{% url 'school_access:dashboard' %}"
            class="px-3 py-1.5 rounded {% if active_page == 'dashboard' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
           Дашборд
+        </a>
+        <a href="{% url 'school_access:students_list' %}"
+           class="px-3 py-1.5 rounded {% if active_page == 'students' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
+          Учні
+        </a>
+        <a href="{% url 'school_access:classes' %}"
+           class="px-3 py-1.5 rounded {% if active_page == 'classes' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
+          Класи
+        </a>
+        <a href="{% url 'school_access:guard' %}"
+           class="px-3 py-1.5 rounded {% if active_page == 'guard' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
+          Охорона
         </a>
         <a href="{% url 'school_access:card_assignment' %}"
            class="px-3 py-1.5 rounded {% if active_page == 'cards' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
@@ -22,7 +34,7 @@
         </a>
         <a href="{% url 'school_access:meal_report' %}"
            class="px-3 py-1.5 rounded {% if active_page == 'meal_report' %}bg-slate-700{% else %}hover:bg-slate-800{% endif %}">
-          Харчовий звіт
+          Харчування
         </a>
         <a href="/admin/" class="px-3 py-1.5 rounded hover:bg-slate-800">Адмінка</a>
         <span class="w-px h-5 bg-slate-700 mx-1"></span>
@@ -35,6 +47,15 @@
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for message in messages %}
+          <div class="px-4 py-2 rounded-lg text-sm {% if message.tags == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% elif message.tags == 'error' %}bg-rose-50 text-rose-700 border border-rose-200{% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 

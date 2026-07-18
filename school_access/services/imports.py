@@ -1,8 +1,11 @@
 """Student/class import (spec sections 6.1, 6.2)."""
 
+import csv
+import io
 import re
 from dataclasses import dataclass, field
 from datetime import date
+from typing import IO
 
 from django.db import transaction
 
@@ -43,6 +46,24 @@ class ImportRow:
 class ImportResult:
     created_students: int = 0
     errors: list[str] = field(default_factory=list)
+
+
+def parse_csv_rows(fileobj: IO[bytes], delimiter: str = ",") -> list[ImportRow]:
+    """Reads last_name,first_name,class_name,meal_option_code from a
+    file-like object opened in binary mode (CLI file handle or an uploaded
+    file from a web form) — shared by the management command and the web
+    import view."""
+    text = io.TextIOWrapper(fileobj, encoding="utf-8")
+    reader = csv.DictReader(text, delimiter=delimiter)
+    return [
+        ImportRow(
+            last_name=row["last_name"],
+            first_name=row["first_name"],
+            class_name=row["class_name"],
+            meal_option_code=row.get("meal_option_code", ""),
+        )
+        for row in reader
+    ]
 
 
 def _get_or_create_class(academic_year: AcademicYear, class_name: str) -> SchoolClass:

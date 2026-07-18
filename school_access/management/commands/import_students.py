@@ -7,12 +7,10 @@ Usage:
     python manage.py import_students students.csv --academic-year "2026/2027"
 """
 
-import csv
-
 from django.core.management.base import BaseCommand, CommandError
 
 from school_access.models import AcademicYear
-from school_access.services.imports import ImportRow, import_students
+from school_access.services.imports import import_students, parse_csv_rows
 
 
 class Command(BaseCommand):
@@ -35,17 +33,8 @@ class Command(BaseCommand):
                 f"Academic year {options['academic_year']!r} does not exist"
             ) from exc
 
-        with open(options["csv_path"], newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter=options["delimiter"])
-            rows = [
-                ImportRow(
-                    last_name=row["last_name"],
-                    first_name=row["first_name"],
-                    class_name=row["class_name"],
-                    meal_option_code=row.get("meal_option_code", ""),
-                )
-                for row in reader
-            ]
+        with open(options["csv_path"], "rb") as f:
+            rows = parse_csv_rows(f, delimiter=options["delimiter"])
 
         result = import_students(rows, academic_year)
 
