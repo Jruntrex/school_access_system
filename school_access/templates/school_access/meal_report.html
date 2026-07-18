@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Meal report — {{ report_date }}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">Meal report — {{ report_date }}</h1>
+    <a class="px-3 py-1.5 rounded bg-slate-700 text-white text-sm"
+       href="?date={{ report_date|date:'Y-m-d' }}&format=csv">Export CSV</a>
+  </div>
+
+  <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
+    <thead class="bg-slate-100 text-left">
+      <tr>
+        <th class="p-2">Class</th>
+        <th class="p-2">Last name</th>
+        <th class="p-2">First name</th>
+        <th class="p-2">Entry time</th>
+        <th class="p-2">Meal option</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-t border-slate-100">
+        <td class="p-2">{{ row.school_class__name }}</td>
+        <td class="p-2">{{ row.student__last_name }}</td>
+        <td class="p-2">{{ row.student__first_name }}</td>
+        <td class="p-2">{{ row.first_entry_time|time:"H:i" }}</td>
+        <td class="p-2">{{ row.student__meal_assignments__meal_option__name }}</td>
+      </tr>
+      {% empty %}
+      <tr><td class="p-4 text-slate-400" colspan="5">No students present yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

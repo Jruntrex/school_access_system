@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>RFID cards</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 p-6">
+  <h1 class="text-2xl font-bold mb-4">RFID card assignment</h1>
+
+  <div id="scan-panel" class="mb-6 p-4 rounded-lg border border-slate-300 bg-white hidden">
+    <p class="text-sm text-slate-600">Waiting for a card scan for
+      <strong id="scan-target-name"></strong>...</p>
+    <p class="text-xs text-slate-400 mt-1">Scanned UID: <span id="scan-uid">-</span></p>
+    <div class="mt-3 flex gap-2">
+      <button id="confirm-btn" class="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-40" disabled>Confirm</button>
+      <button id="cancel-btn" class="px-3 py-1.5 rounded bg-slate-200 text-sm">Cancel</button>
+    </div>
+  </div>
+
+  <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
+    <thead class="bg-slate-100 text-left">
+      <tr>
+        <th class="p-2">Student</th>
+        <th class="p-2">Class</th>
+        <th class="p-2">Card</th>
+        <th class="p-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-t border-slate-100">
+        <td class="p-2">{{ row.student.last_name }} {{ row.student.first_name }}</td>
+        <td class="p-2">{{ row.school_class|default:"-" }}</td>
+        <td class="p-2">
+          {% if row.has_card %}
+            <span class="text-emerald-600">assigned</span>
+          {% else %}
+            <span class="text-slate-400">none</span>
+          {% endif %}
+        </td>
+        <td class="p-2 text-right">
+          <button class="assign-btn px-3 py-1 rounded bg-indigo-600 text-white text-xs"
+                  data-student-id="{{ row.student.id }}"
+                  data-student-name="{{ row.student.last_name }} {{ row.student.first_name }}">
+            {% if row.has_card %}Replace card{% else %}Assign card{% endif %}
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+<script>
+function getCookie(name) {
+  const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return match ? match.pop() : '';
+}
+const csrftoken = getCookie('csrftoken');
+
+let pollTimer = null;
+let currentStudentId = null;
+
+const panel = document.getElementById('scan-panel');
+const targetName = document.getElementById('scan-target-name');
+const uidLabel = document.getElementById('scan-uid');
+const confirmBtn = document.getElementById('confirm-btn');
+const cancelBtn = document.getElementById('cancel-btn');
+
+document.querySelectorAll('.assign-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    currentStudentId = btn.dataset.studentId;
+    targetName.textContent = btn.dataset.studentName;
+    uidLabel.textContent = '-';
+    confirmBtn.disabled = true;
+    panel.classList.remove('hidden');
+
+    await fetch('/api/cards/assign-mode/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+      body: JSON.stringify({action: 'start'}),
+    });
+
+    pollTimer = setInterval(pollScanState, 1500);
+  });
+});
+
+async function pollScanState() {
+  const res = await fetch('/api/cards/scan-state/');
+  const state = await res.json();
+  if (state.uid) {
+    uidLabel.textContent = state.uid;
+    confirmBtn.disabled = false;
+  }
+}
+
+confirmBtn.addEventListener('click', async () => {
+  clearInterval(pollTimer);
+  await fetch('/api/cards/confirm-assignment/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+    body: JSON.stringify({student_id: Number(currentStudentId)}),
+  });
+  location.reload();
+});
+
+cancelBtn.addEventListener('click', async () => {
+  clearInterval(pollTimer);
+  await fetch('/api/cards/assign-mode/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+    body: JSON.stringify({action: 'stop'}),
+  });
+  panel.classList.add('hidden');
+});
+</script>
+</body>
+</html>
