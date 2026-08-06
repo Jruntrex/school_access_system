@@ -121,7 +121,14 @@ class AccessEventAdmin(admin.ModelAdmin):
 
 @admin.register(AttendanceDaily)
 class AttendanceDailyAdmin(admin.ModelAdmin):
-    list_display = ("attendance_date", "student", "school_class", "first_entry_time")
+    list_display = (
+        "attendance_date",
+        "student",
+        "school_class",
+        "first_entry_time",
+        "last_entry_time",
+        "last_exit_time",
+    )
     list_filter = ("school_class",)
     search_fields = ("student__last_name", "student__first_name")
     ordering = ("-attendance_date",)

@@ -1,0 +1,36 @@
+{% extends "school_access/base.html" %}
+{% block title %}Редагування навчального року — School Access{% endblock %}
+{% block content %}
+
+  <div class="mb-5">
+    <a href="{% url 'school_access:classes' %}" class="text-sm text-brand-600 hover:text-brand-700">← До класів</a>
+  </div>
+
+  <h1 class="text-2xl font-bold text-brand-950 mb-5">Редагування: {{ year.name }}</h1>
+
+  <form method="post" class="bg-white border border-slate-200 rounded-xl p-6 max-w-md space-y-4 shadow-sm">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}
+          <p class="text-xs text-rose-600 mt-1">{{ field.errors|striptags }}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    <div class="flex gap-2 pt-2">
+      <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition shadow-sm">Зберегти</button>
+      <a href="{% url 'school_access:classes' %}" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition">Скасувати</a>
+    </div>
+  </form>
+
+<style>
+  input[type=text], input[type=date], select {
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.5rem 0.7rem; font-size: 0.875rem;
+  }
+  input:focus, select:focus { outline: 2px solid #5c8ef2; outline-offset: 1px; border-color: #5c8ef2; }
+</style>
+{% endblock %}

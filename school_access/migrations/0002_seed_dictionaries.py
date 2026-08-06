@@ -6,21 +6,21 @@ def seed(apps, schema_editor):
     ReaderLocation = apps.get_model("school_access", "ReaderLocation")
     RfidReader = apps.get_model("school_access", "RfidReader")
 
-    MealOption.objects.get_or_create(code="STANDARD", defaults={"name": "Standard meal"})
-    MealOption.objects.get_or_create(code="NO_MEAL", defaults={"name": "No meal"})
-    MealOption.objects.get_or_create(code="SPECIAL", defaults={"name": "Special meal option"})
+    MealOption.objects.get_or_create(code="STANDARD", defaults={"name": "Стандартне харчування"})
+    MealOption.objects.get_or_create(code="NO_MEAL", defaults={"name": "Не харчується"})
+    MealOption.objects.get_or_create(code="SPECIAL", defaults={"name": "Окремий варіант харчування"})
 
     vestibule, _ = ReaderLocation.objects.get_or_create(
-        name="Vestibule", defaults={"description": "School entry area"}
+        name="Вестибюль", defaults={"description": "Зона входу до школи"}
     )
     ReaderLocation.objects.get_or_create(
-        name="Canteen", defaults={"description": "School canteen"}
+        name="Їдальня", defaults={"description": "Шкільна їдальня"}
     )
 
     RfidReader.objects.get_or_create(
         code="VESTIBULE_ENTRY_1",
         defaults={
-            "name": "Vestibule Entry Reader 1",
+            "name": "Зчитувач на вході (вестибюль) 1",
             "location": vestibule,
             "purpose": "ENTER_SCHOOL",
             "status": "ACTIVE",
@@ -34,7 +34,7 @@ def unseed(apps, schema_editor):
     RfidReader = apps.get_model("school_access", "RfidReader")
 
     RfidReader.objects.filter(code="VESTIBULE_ENTRY_1").delete()
-    ReaderLocation.objects.filter(name__in=["Vestibule", "Canteen"]).delete()
+    ReaderLocation.objects.filter(name__in=["Вестибюль", "Їдальня"]).delete()
     MealOption.objects.filter(code__in=["STANDARD", "NO_MEAL", "SPECIAL"]).delete()
 
 

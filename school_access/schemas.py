@@ -11,6 +11,7 @@ class ScanResponse(Schema):
     event_status: str | None = None
     student: str | None = None
     uid: str | None = None
+    direction: str | None = None  # "ENTRY" | "EXIT" — for the reader's beep count
 
 
 class ManualEntryRequest(Schema):

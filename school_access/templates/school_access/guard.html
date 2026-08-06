@@ -2,52 +2,80 @@
 {% block title %}Охорона — School Access{% endblock %}
 {% block content %}
 
-  <h1 class="text-2xl font-bold mb-4">Ручний запис входу</h1>
+  <h1 class="text-2xl font-bold text-brand-950 mb-1">Ручний запис входу</h1>
   <p class="text-sm text-slate-500 mb-4">Для учня без картки або коли картка не спрацювала.</p>
 
-  <input id="search" type="text" placeholder="Пошук за прізвищем..."
-         class="w-full max-w-sm mb-4 border border-slate-300 rounded-lg px-3 py-2 text-sm">
+  <div class="relative max-w-sm mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">
+      <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.45 4.39l3.08 3.08a.75.75 0 1 1-1.06 1.06l-3.08-3.08A7 7 0 0 1 2 9Z" clip-rule="evenodd" /></svg>
+    <input id="search" type="text" placeholder="Пошук за прізвищем..."
+           class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400">
+  </div>
 
-  <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200 mb-8">
-    <thead class="bg-slate-100 text-left">
-      <tr><th class="p-2">Учень</th><th class="p-2">Клас</th><th class="p-2"></th></tr>
-    </thead>
-    <tbody id="student-rows">
-      {% for row in rows %}
-      <tr class="border-t border-slate-100" data-name="{{ row.student.last_name|lower }} {{ row.student.first_name|lower }}">
-        <td class="p-2">{{ row.student.last_name }} {{ row.student.first_name }}</td>
-        <td class="p-2">{{ row.school_class|default:"-" }}</td>
-        <td class="p-2 text-right">
-          <button class="checkin-btn px-3 py-1 rounded bg-indigo-600 text-white text-xs"
-                  data-student-id="{{ row.student.id }}"
-                  data-student-name="{{ row.student.last_name }} {{ row.student.first_name }}">
-            Зафіксувати вхід
-          </button>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td class="p-4 text-slate-400" colspan="3">Активних учнів немає.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+        <tr><th class="p-3 font-medium">Учень</th><th class="p-3 font-medium">Клас</th><th class="p-3 font-medium">Статус</th><th class="p-3"></th></tr>
+      </thead>
+      <tbody id="student-rows" class="divide-y divide-slate-100">
+        {% for row in rows %}
+        <tr class="hover:bg-slate-50/70 transition" data-name="{{ row.student.last_name|lower }} {{ row.student.first_name|lower }}">
+          <td class="p-3 font-medium text-slate-800">{{ row.student.last_name }} {{ row.student.first_name }}</td>
+          <td class="p-3 text-slate-600">{{ row.school_class|default:"—" }}</td>
+          <td class="p-3">
+            {% if row.status == "in_building" %}
+              <span class="text-emerald-600 font-medium">у школі</span>
+            {% elif row.status == "exited" %}
+              <span class="text-amber-600 font-medium">вийшов</span>
+            {% else %}
+              <span class="text-slate-400 font-medium">відсутній</span>
+            {% endif %}
+          </td>
+          <td class="p-3 text-right">
+            {% if row.status == "in_building" %}
+              <button class="toggle-btn px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition"
+                      data-endpoint="/api/access/manual-exit/"
+                      data-student-id="{{ row.student.id }}">
+                Зафіксувати вихід
+              </button>
+            {% else %}
+              <button class="toggle-btn px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition"
+                      data-endpoint="/api/access/manual/"
+                      data-student-id="{{ row.student.id }}">
+                Зафіксувати вхід
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-4 text-center text-slate-400" colspan="4">Активних учнів немає.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   <h2 class="font-semibold text-slate-700 mb-2">Сьогоднішні ручні записи</h2>
-  <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200">
-    <thead class="bg-slate-100 text-left">
-      <tr><th class="p-2">Час</th><th class="p-2">Учень</th><th class="p-2">Примітка</th></tr>
-    </thead>
-    <tbody id="recent-entries">
-      {% for event in recent_entries %}
-      <tr class="border-t border-slate-100">
-        <td class="p-2">{{ event.event_time|time:"H:i" }}</td>
-        <td class="p-2">{{ event.student }}</td>
-        <td class="p-2 text-slate-500">{{ event.notes }}</td>
-      </tr>
-      {% empty %}
-      <tr><td class="p-4 text-slate-400" colspan="3">Ще немає ручних записів за сьогодні.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+        <tr><th class="p-3 font-medium">Час</th><th class="p-3 font-medium">Учень</th><th class="p-3 font-medium">Напрямок</th><th class="p-3 font-medium">Примітка</th></tr>
+      </thead>
+      <tbody id="recent-entries" class="divide-y divide-slate-100">
+        {% for event in recent_entries %}
+        <tr>
+          <td class="p-3 text-slate-600">{{ event.event_time|time:"H:i" }}</td>
+          <td class="p-3 font-medium text-slate-800">{{ event.student }}</td>
+          <td class="p-3 text-slate-600">
+            {% if event.event_type == "EXIT_SCHOOL" %}вихід{% else %}вхід{% endif %}
+          </td>
+          <td class="p-3 text-slate-500">{{ event.notes }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-4 text-center text-slate-400" colspan="4">Ще немає ручних записів за сьогодні.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
 <script>
 function getCookie(name) {
@@ -63,11 +91,12 @@ document.getElementById('search').addEventListener('input', (e) => {
   });
 });
 
-document.querySelectorAll('.checkin-btn').forEach(btn => {
+document.querySelectorAll('.toggle-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
+    const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '...';
-    const res = await fetch('/api/access/manual/', {
+    const res = await fetch(btn.dataset.endpoint, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
       body: JSON.stringify({student_id: Number(btn.dataset.studentId), notes: 'Ручний запис (охорона)'}),
@@ -76,8 +105,8 @@ document.querySelectorAll('.checkin-btn').forEach(btn => {
       location.reload();
     } else {
       btn.disabled = false;
-      btn.textContent = 'Зафіксувати вхід';
-      alert('Не вдалося зафіксувати вхід.');
+      btn.textContent = originalText;
+      alert('Не вдалося зафіксувати запис.');
     }
   });
 });

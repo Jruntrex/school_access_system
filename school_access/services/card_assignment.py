@@ -86,6 +86,13 @@ def assign_card(raw_uid: str, student: Student) -> RfidCardAssignment:
     card, _ = RfidCard.objects.select_for_update().get_or_create(
         card_uid_hash=card_uid_hash, defaults={"status": RfidCard.Status.ACTIVE}
     )
+    if card.status != RfidCard.Status.ACTIVE:
+        # Re-issuing a card that was previously marked lost/damaged/retired —
+        # handing it back out means it's back in service.
+        card.status = RfidCard.Status.ACTIVE
+        card.deactivated_at = None
+        card.deactivation_reason = None
+        card.save(update_fields=["status", "deactivated_at", "deactivation_reason"])
 
     existing_for_card = (
         RfidCardAssignment.objects.select_for_update()

@@ -7,9 +7,9 @@ class StudentForm(forms.Form):
     """Not a ModelForm: class/meal option live in separate history tables
     (StudentClassEnrollment/StudentMealAssignment), not as fields on Student."""
 
-    last_name = forms.CharField(max_length=100)
-    first_name = forms.CharField(max_length=100)
-    status = forms.ChoiceField(choices=Student.Status.choices)
+    last_name = forms.CharField(max_length=100, label="Прізвище")
+    first_name = forms.CharField(max_length=100, label="Ім'я")
+    status = forms.ChoiceField(choices=Student.Status.choices, label="Статус")
     school_class = forms.ModelChoiceField(
         queryset=SchoolClass.objects.filter(status="ACTIVE"),
         label="Клас",
@@ -28,12 +28,24 @@ class AcademicYearForm(forms.ModelForm):
             "starts_on": forms.DateInput(attrs={"type": "date"}),
             "ends_on": forms.DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "name": "Назва",
+            "starts_on": "Дата початку",
+            "ends_on": "Дата завершення",
+            "is_active": "Активний",
+        }
 
 
 class SchoolClassForm(forms.ModelForm):
     class Meta:
         model = SchoolClass
         fields = ["academic_year", "grade", "letter", "status"]
+        labels = {
+            "academic_year": "Навчальний рік",
+            "grade": "Клас (номер)",
+            "letter": "Літера",
+            "status": "Статус",
+        }
 
     def clean(self):
         cleaned = super().clean()
@@ -52,8 +64,12 @@ class SchoolClassForm(forms.ModelForm):
 
 
 class StudentImportForm(forms.Form):
-    academic_year = forms.ModelChoiceField(queryset=AcademicYear.objects.all())
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(), label="Навчальний рік"
+    )
     csv_file = forms.FileField(label="CSV-файл")
     delimiter = forms.ChoiceField(
-        choices=[(",", "Кома (,)"), (";", "Крапка з комою (;)")], initial=","
+        choices=[(",", "Кома (,)"), (";", "Крапка з комою (;)")],
+        initial=",",
+        label="Роздільник",
     )

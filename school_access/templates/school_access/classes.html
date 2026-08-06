@@ -2,30 +2,47 @@
 {% block title %}Класи — School Access{% endblock %}
 {% block content %}
 
-  <h1 class="text-2xl font-bold mb-4">Навчальні роки та класи</h1>
+  <h1 class="text-2xl font-bold text-brand-950 mb-5">Навчальні роки та класи</h1>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
     <div>
       <h2 class="font-semibold text-slate-700 mb-2">Навчальні роки</h2>
-      <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200 mb-3">
-        <thead class="bg-slate-100 text-left">
-          <tr><th class="p-2">Назва</th><th class="p-2">Період</th><th class="p-2">Активний</th></tr>
-        </thead>
-        <tbody>
-          {% for year in academic_years %}
-          <tr class="border-t border-slate-100">
-            <td class="p-2">{{ year.name }}</td>
-            <td class="p-2">{{ year.starts_on }} – {{ year.ends_on }}</td>
-            <td class="p-2">{% if year.is_active %}<span class="text-emerald-600">так</span>{% else %}-{% endif %}</td>
-          </tr>
-          {% empty %}
-          <tr><td class="p-4 text-slate-400" colspan="3">Ще немає навчальних років.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <tr><th class="p-3 font-medium">Назва</th><th class="p-3 font-medium">Період</th><th class="p-3 font-medium">Активний</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for year in academic_years %}
+            <tr class="hover:bg-slate-50/70 transition">
+              <td class="p-3 font-medium text-slate-800">{{ year.name }}</td>
+              <td class="p-3 text-slate-600">{{ year.starts_on }} – {{ year.ends_on }}</td>
+              <td class="p-3">
+                {% if year.is_active %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">так</span>
+                {% else %}
+                  <span class="text-slate-300">—</span>
+                {% endif %}
+              </td>
+              <td class="p-3 text-right whitespace-nowrap">
+                <a href="{% url 'school_access:academic_year_edit' year.id %}"
+                   class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition">Редагувати</a>
+                <form method="post" action="{% url 'school_access:academic_year_delete' year.id %}" class="inline"
+                      onsubmit="return confirm('Видалити навчальний рік «{{ year.name }}»?');">
+                  {% csrf_token %}
+                  <button type="submit" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100 transition">Видалити</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td class="p-4 text-center text-slate-400" colspan="4">Ще немає навчальних років.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-      <form method="post" class="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+      <form method="post" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-sm">
         {% csrf_token %}
         <input type="hidden" name="form" value="academic_year">
         <div class="font-medium text-sm text-slate-700">Додати навчальний рік</div>
@@ -36,30 +53,47 @@
             {% if field.errors %}<p class="text-xs text-rose-600 mt-1">{{ field.errors|striptags }}</p>{% endif %}
           </div>
         {% endfor %}
-        <button type="submit" class="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm">Додати</button>
+        <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition">Додати</button>
       </form>
     </div>
 
     <div>
       <h2 class="font-semibold text-slate-700 mb-2">Класи</h2>
-      <table class="w-full text-sm bg-white rounded-lg overflow-hidden border border-slate-200 mb-3">
-        <thead class="bg-slate-100 text-left">
-          <tr><th class="p-2">Клас</th><th class="p-2">Навчальний рік</th><th class="p-2">Статус</th></tr>
-        </thead>
-        <tbody>
-          {% for cls in classes %}
-          <tr class="border-t border-slate-100">
-            <td class="p-2">{{ cls.name }}</td>
-            <td class="p-2">{{ cls.academic_year }}</td>
-            <td class="p-2">{{ cls.status }}</td>
-          </tr>
-          {% empty %}
-          <tr><td class="p-4 text-slate-400" colspan="3">Ще немає класів.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <tr><th class="p-3 font-medium">Клас</th><th class="p-3 font-medium">Навчальний рік</th><th class="p-3 font-medium">Статус</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for cls in classes %}
+            <tr class="hover:bg-slate-50/70 transition">
+              <td class="p-3 font-medium text-slate-800">{{ cls.name }}</td>
+              <td class="p-3 text-slate-600">{{ cls.academic_year }}</td>
+              <td class="p-3">
+                {% if cls.status == "ACTIVE" %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">активний</span>
+                {% else %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">неактивний</span>
+                {% endif %}
+              </td>
+              <td class="p-3 text-right whitespace-nowrap">
+                <a href="{% url 'school_access:school_class_edit' cls.id %}"
+                   class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition">Редагувати</a>
+                <form method="post" action="{% url 'school_access:school_class_delete' cls.id %}" class="inline"
+                      onsubmit="return confirm('Видалити клас «{{ cls.name }}»?');">
+                  {% csrf_token %}
+                  <button type="submit" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100 transition">Видалити</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td class="p-4 text-center text-slate-400" colspan="4">Ще немає класів.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-      <form method="post" class="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+      <form method="post" class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-sm">
         {% csrf_token %}
         <input type="hidden" name="form" value="class">
         <div class="font-medium text-sm text-slate-700">Додати клас</div>
@@ -70,7 +104,7 @@
             {% if field.errors %}<p class="text-xs text-rose-600 mt-1">{{ field.errors|striptags }}</p>{% endif %}
           </div>
         {% endfor %}
-        <button type="submit" class="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm">Додати</button>
+        <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition">Додати</button>
       </form>
     </div>
 
@@ -78,8 +112,9 @@
 
 <style>
   input[type=text], input[type=number], input[type=date], select {
-    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.375rem;
-    padding: 0.4rem 0.6rem; font-size: 0.875rem;
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.45rem 0.65rem; font-size: 0.875rem;
   }
+  input:focus, select:focus { outline: 2px solid #5c8ef2; outline-offset: 1px; border-color: #5c8ef2; }
 </style>
 {% endblock %}

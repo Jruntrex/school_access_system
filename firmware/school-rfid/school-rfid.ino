@@ -1,11 +1,19 @@
 #include <Wire.h>
 #include <Adafruit_PN532.h>
+
+// --- MODE SWITCH ---
+// 1 = scan over USB serial only (this PC reads the port, no Wi-Fi needed).
+// 0 = original Wi-Fi + HTTP mode (ESP32 posts straight to /api/access/scan/).
+// Flip to 0 and re-flash to go back to the Wi-Fi flow below.
+#define USB_SERIAL_MODE 1
+
+#if !USB_SERIAL_MODE
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
 #include "mbedtls/md.h"
+#endif
 
 // --- PINS ---
 #define I2C_SDA 8
@@ -13,6 +21,7 @@
 #define LED_PIN 10
 #define BUZZ_PIN 7
 
+#if !USB_SERIAL_MODE
 // --- WIFI NETWORKS ---
 struct WifiNetwork {
   const char* ssid;
@@ -26,19 +35,23 @@ WifiNetwork networks[] = {
 const int networkCount = sizeof(networks) / sizeof(networks[0]);
 
 // --- SERVER ---
-const char* SERVER_HOST = "your-server-host.example";
-const int   SERVER_PORT = 443;
+// Local testing: plain HTTP to your machine's LAN IP (Django runserver
+// listening on 0.0.0.0:8000). Switch back to HTTPS + WiFiClientSecure for
+// any real/public deployment.
+const char* SERVER_HOST = "192.168.0.109";
+const int   SERVER_PORT = 8000;
 const char* ENDPOINT    = "/api/access/scan/";
 
 // --- Identifies this physical reader; must match an rfid_readers.code row ---
 const char* READER_CODE = "VESTIBULE_ENTRY_1";
 
 // --- SECURITY: HMAC-SHA256 key, must match CARD_SCAN_API_KEY in .env ---
-const char* HMAC_SECRET = "CHANGE_ME_MATCH_CARD_SCAN_API_KEY_ENV";
+const char* HMAC_SECRET = "8e467ebe06fafe808b4bfb1ab10b846ec6e561869dbd20d313ec507bf350865f";
 
 // --- Consecutive HTTP failure counter ---
 int consecutiveFailures = 0;
 const int MAX_FAILURES  = 3;
+#endif // !USB_SERIAL_MODE
 
 // -------------------------------------------------------
 
@@ -86,6 +99,7 @@ void beepError() {
   ledOff(); digitalWrite(BUZZ_PIN, LOW);
 }
 
+#if !USB_SERIAL_MODE
 // --- NTP sync (required: signatures are time-windowed) ---
 void syncTime() {
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
@@ -161,8 +175,70 @@ void connectWiFi() {
   delay(3000);
   ESP.restart();
 }
+#endif // !USB_SERIAL_MODE
 
 // -------------------------------------------------------
+
+#if USB_SERIAL_MODE
+// --- USB-SERIAL MODE ---
+// No Wi-Fi/HTTP/HMAC here: the ESP32 just prints "UID:<hex>" over USB
+// whenever a card is scanned. A PC-side bridge (firmware/serial_bridge.py)
+// reads this port, signs the UID (using the PC's own clock -- there's no
+// NTP time here without Wi-Fi) and POSTs it to /api/access/scan/, so the
+// server-side logic (dedup, event_status, assign-mode) is unchanged.
+//
+// Entry/exit feedback: after printing the UID, we wait briefly for the
+// bridge to write back "ENTRY" or "EXIT" (its read of the server's
+// response). One beep already fired on scan; an "EXIT" reply adds a
+// second beep, so staff hear 1 beep = entry, 2 beeps = exit. If the bridge
+// is offline or slow, the wait just times out and the single beep stands
+// -- scanning never blocks on the PC being reachable.
+
+void setup() {
+  Serial.begin(115200);
+  Serial.setTimeout(1500);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZ_PIN, OUTPUT);
+
+  ledOn();
+  nfc.begin();
+  if (!nfc.getFirmwareVersion()) {
+    Serial.println("PN532 not found! Check wiring.");
+    while (1) beepError();
+  }
+  nfc.SAMConfig();
+  ledOff();
+  Serial.println("--- READY (USB serial mode) ---");
+}
+
+void loop() {
+  uint8_t uid[7] = {0};
+  uint8_t uidLength;
+
+  if (!nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500)) return;
+
+  String uidStr = "";
+  for (uint8_t i = 0; i < uidLength; i++) {
+    if (i > 0) uidStr += ":";
+    if (uid[i] < 0x10) uidStr += "0";
+    uidStr += String(uid[i], HEX);
+  }
+  uidStr.toUpperCase();
+
+  beepScan();
+  Serial.println("UID:" + uidStr);
+
+  String direction = Serial.readStringUntil('\n');
+  direction.trim();
+  if (direction == "EXIT") {
+    delay(120);
+    beepDirection(1);
+  }
+
+  delay(500);  // remaining debounce between cards
+}
+
+#else // !USB_SERIAL_MODE -- original Wi-Fi mode
 
 void setup() {
   Serial.begin(115200);
@@ -215,11 +291,9 @@ void loop() {
   Serial.printf("Timestamp: %s | Signature: %s\n",
     timestamp.c_str(), signature.c_str());
 
-  WiFiClientSecure client;
-  client.setInsecure();  // cert pinning skipped -- HMAC guards authenticity
   HTTPClient http;
-  String url = String("https://") + SERVER_HOST + ":" + SERVER_PORT + ENDPOINT;
-  http.begin(client, url);
+  String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + ENDPOINT;
+  http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Timestamp",  timestamp);
   http.addHeader("X-Signature",  signature);
@@ -273,3 +347,5 @@ void loop() {
   http.end();
   delay(2000);  // debounce between cards
 }
+
+#endif // USB_SERIAL_MODE

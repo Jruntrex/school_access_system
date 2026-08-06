@@ -2,15 +2,19 @@
 {% block title %}Імпорт учнів — School Access{% endblock %}
 {% block content %}
 
-  <h1 class="text-2xl font-bold mb-4">Імпорт учнів з CSV</h1>
+  <div class="mb-5">
+    <a href="{% url 'school_access:students_list' %}" class="text-sm text-brand-600 hover:text-brand-700">← До списку учнів</a>
+  </div>
 
-  <p class="text-sm text-slate-500 mb-4">
-    Колонки (з заголовком): <code>last_name,first_name,class_name,meal_option_code</code>.
-    <code>meal_option_code</code> необов'язковий — за замовчуванням STANDARD.
+  <h1 class="text-2xl font-bold text-brand-950 mb-4">Імпорт учнів з CSV</h1>
+
+  <p class="text-sm text-slate-500 mb-4 max-w-lg">
+    Колонки (з заголовком): <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">last_name,first_name,class_name,meal_option_code</code>.
+    <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">meal_option_code</code> необов'язковий — за замовчуванням STANDARD.
   </p>
 
   <form method="post" enctype="multipart/form-data"
-        class="bg-white border border-slate-200 rounded-lg p-5 max-w-lg space-y-4 mb-6">
+        class="bg-white border border-slate-200 rounded-xl p-6 max-w-lg space-y-4 mb-6 shadow-sm">
     {% csrf_token %}
     {% for field in form %}
       <div>
@@ -21,11 +25,11 @@
         {% endif %}
       </div>
     {% endfor %}
-    <button type="submit" class="px-4 py-2 rounded bg-indigo-600 text-white text-sm">Імпортувати</button>
+    <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition shadow-sm">Імпортувати</button>
   </form>
 
   {% if result %}
-    <div class="p-4 rounded-lg border border-slate-200 bg-white max-w-lg">
+    <div class="p-4 rounded-xl border border-slate-200 bg-white max-w-lg shadow-sm">
       <p class="text-emerald-700 font-medium">Створено учнів: {{ result.created_students }}</p>
       {% if result.errors %}
         <ul class="mt-2 text-sm text-rose-600 list-disc list-inside">
@@ -34,14 +38,15 @@
           {% endfor %}
         </ul>
       {% endif %}
-      <a href="{% url 'school_access:students_list' %}" class="inline-block mt-3 text-sm text-indigo-600">До списку учнів →</a>
+      <a href="{% url 'school_access:students_list' %}" class="inline-block mt-3 text-sm text-brand-600 hover:text-brand-700">До списку учнів →</a>
     </div>
   {% endif %}
 
 <style>
   input[type=text], input[type=date], select, input[type=file] {
-    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.375rem;
-    padding: 0.4rem 0.6rem; font-size: 0.875rem;
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.5rem 0.7rem; font-size: 0.875rem;
   }
+  input[type=text]:focus, select:focus { outline: 2px solid #5c8ef2; outline-offset: 1px; border-color: #5c8ef2; }
 </style>
 {% endblock %}

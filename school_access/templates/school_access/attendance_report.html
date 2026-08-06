@@ -1,0 +1,133 @@
+{% extends "school_access/base.html" %}
+{% block title %}Звіт присутності — {{ report_date }}{% endblock %}
+{% block content %}
+
+  <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-brand-950">Звіт присутності по класах</h1>
+      <p class="text-sm text-slate-500 mt-0.5">{{ report_date }}</p>
+    </div>
+    <a class="px-3.5 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition shadow-sm"
+       href="?date={{ report_date|date:'Y-m-d' }}&format=csv">Експорт CSV</a>
+  </div>
+
+  <div id="class-report" data-date="{{ report_date|date:'Y-m-d' }}" class="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-200">
+    {% for class_row in class_rows %}
+    <div>
+      <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50">
+        <div class="font-semibold text-brand-950">{{ class_row.name }}</div>
+        <div class="text-sm flex items-center gap-3">
+          <span class="text-emerald-600 font-medium">{{ class_row.present_count }} присутніх</span>
+          <span class="text-rose-500 font-medium">{{ class_row.absent_count }} відсутніх</span>
+        </div>
+      </div>
+      <table class="w-full text-sm">
+        <tbody class="divide-y divide-slate-100">
+          {% for student in class_row.present %}
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="p-3 text-slate-800">{{ student.last_name }} {{ student.first_name }}</td>
+            <td class="p-3">
+              {% if student.in_building %}
+                <span class="text-emerald-600 font-medium">у школі</span>
+              {% else %}
+                <span class="text-amber-600 font-medium">вийшов</span>
+              {% endif %}
+            </td>
+            <td class="p-3 text-slate-500">вхід {{ student.last_entry_time|time:"H:i" }}</td>
+            <td class="p-3 text-slate-500">{% if student.in_building %}вихід —{% else %}вихід {{ student.last_exit_time|time:"H:i" }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+          {% for student in class_row.absent %}
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="p-3 text-slate-800">{{ student.last_name }} {{ student.first_name }}</td>
+            <td class="p-3 text-rose-500 font-medium">відсутній</td>
+            <td class="p-3 text-slate-400">—</td>
+            <td class="p-3 text-slate-400">—</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% empty %}
+    <div class="p-4 text-center text-slate-400">Немає активних класів.</div>
+    {% endfor %}
+  </div>
+
+  <div id="totals-row" class="mt-4 flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white font-semibold">
+    <div class="text-brand-950">Загалом</div>
+    <div class="text-sm flex items-center gap-3">
+      <span class="text-emerald-600" id="total-present">{{ total_present }} присутніх</span>
+      <span class="text-rose-500" id="total-absent">{{ total_absent }} відсутніх</span>
+    </div>
+  </div>
+
+<script>
+function formatTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'});
+}
+
+function studentStatusLabel(student) {
+  return student.in_building
+    ? '<span class="text-emerald-600 font-medium">у школі</span>'
+    : '<span class="text-amber-600 font-medium">вийшов</span>';
+}
+
+function renderClassReport(data) {
+  const container = document.getElementById('class-report');
+  if (!data.class_rows.length) {
+    container.innerHTML = '<div class="p-4 text-center text-slate-400">Немає активних класів.</div>';
+  } else {
+    container.innerHTML = data.class_rows.map(classRow => `
+      <div>
+        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50">
+          <div class="font-semibold text-brand-950">${classRow.name}</div>
+          <div class="text-sm flex items-center gap-3">
+            <span class="text-emerald-600 font-medium">${classRow.present_count} присутніх</span>
+            <span class="text-rose-500 font-medium">${classRow.absent_count} відсутніх</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-slate-100">
+            ${classRow.present.map(student => `
+              <tr class="hover:bg-slate-50/70 transition">
+                <td class="p-3 text-slate-800">${student.last_name} ${student.first_name}</td>
+                <td class="p-3">${studentStatusLabel(student)}</td>
+                <td class="p-3 text-slate-500">вхід ${formatTime(student.last_entry_time)}</td>
+                <td class="p-3 text-slate-500">вихід ${student.in_building ? '—' : formatTime(student.last_exit_time)}</td>
+              </tr>
+            `).join('')}
+            ${classRow.absent.map(student => `
+              <tr class="hover:bg-slate-50/70 transition">
+                <td class="p-3 text-slate-800">${student.last_name} ${student.first_name}</td>
+                <td class="p-3 text-rose-500 font-medium">відсутній</td>
+                <td class="p-3 text-slate-400">—</td>
+                <td class="p-3 text-slate-400">—</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('total-present').textContent = data.total_present + ' присутніх';
+  document.getElementById('total-absent').textContent = data.total_absent + ' відсутніх';
+}
+
+async function refreshClassReport() {
+  const reportDate = document.getElementById('class-report').dataset.date;
+  try {
+    const res = await fetch(`/api/reports/attendance-by-class/?report_date=${reportDate}`);
+    if (!res.ok) return;
+    renderClassReport(await res.json());
+  } catch (err) {
+    // мережева пауза — спробуємо ще раз на наступному тику
+  }
+}
+
+setInterval(refreshClassReport, 4000);
+</script>
+
+{% endblock %}

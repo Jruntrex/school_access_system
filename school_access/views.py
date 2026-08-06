@@ -3,8 +3,10 @@ from datetime import date as date_cls
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import ProtectedError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from school_access import selectors
 from school_access.forms import (
@@ -13,7 +15,14 @@ from school_access.forms import (
     StudentForm,
     StudentImportForm,
 )
-from school_access.models import AcademicYear, AccessEvent, RfidCardAssignment, SchoolClass, Student
+from school_access.models import (
+    AcademicYear,
+    AccessEvent,
+    AttendanceDaily,
+    RfidCardAssignment,
+    SchoolClass,
+    Student,
+)
 from school_access.services import students as students_service
 from school_access.services.imports import import_students, parse_csv_rows
 
@@ -84,17 +93,18 @@ def meal_report_view(request):
     rows = list(selectors.daily_meal_report(report_date))
 
     if request.GET.get("format") == "csv":
-        response = HttpResponse(content_type="text/csv")
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="meal_report_{report_date}.csv"'
+        response.write("﻿")  # BOM so Excel doesn't mangle Cyrillic
         writer = csv.writer(response)
-        writer.writerow(["Class", "Last name", "First name", "Entry time", "Meal option"])
+        writer.writerow(["Клас", "Прізвище", "Ім'я", "Час входу", "Харчування"])
         for row in rows:
             writer.writerow(
                 [
                     row["school_class__name"],
                     row["student__last_name"],
                     row["student__first_name"],
-                    row["first_entry_time"],
+                    row["last_entry_time"],
                     row["student__meal_assignments__meal_option__name"],
                 ]
             )
@@ -102,6 +112,52 @@ def meal_report_view(request):
 
     context = {"active_page": "meal_report", "report_date": report_date, "rows": rows}
     return render(request, "school_access/meal_report.html", context)
+
+
+@staff_member_required
+def attendance_report_view(request):
+    report_date_str = request.GET.get("date")
+    report_date = (
+        date_cls.fromisoformat(report_date_str) if report_date_str else date_cls.today()
+    )
+    class_rows = selectors.attendance_by_class(report_date)
+    total_present = sum(row["present_count"] for row in class_rows)
+    total_absent = sum(row["absent_count"] for row in class_rows)
+
+    if request.GET.get("format") == "csv":
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="attendance_report_{report_date}.csv"'
+        )
+        response.write("﻿")  # BOM so Excel doesn't mangle Cyrillic
+        writer = csv.writer(response)
+        writer.writerow(["Клас", "Прізвище", "Ім'я", "Статус", "Час входу", "Час виходу"])
+        for class_row in class_rows:
+            for student in class_row["present"]:
+                writer.writerow(
+                    [
+                        class_row["name"],
+                        student["last_name"],
+                        student["first_name"],
+                        "у школі" if student["in_building"] else "вийшов",
+                        student["last_entry_time"],
+                        student["last_exit_time"] or "",
+                    ]
+                )
+            for student in class_row["absent"]:
+                writer.writerow(
+                    [class_row["name"], student["last_name"], student["first_name"], "відсутній", "", ""]
+                )
+        return response
+
+    context = {
+        "active_page": "attendance_report",
+        "report_date": report_date,
+        "class_rows": class_rows,
+        "total_present": total_present,
+        "total_absent": total_absent,
+    }
+    return render(request, "school_access/attendance_report.html", context)
 
 
 @staff_member_required
@@ -232,21 +288,104 @@ def classes_view(request):
 
 
 @staff_member_required
+def academic_year_edit_view(request, year_id):
+    year = get_object_or_404(AcademicYear, pk=year_id)
+
+    if request.method == "POST":
+        form = AcademicYearForm(request.POST, instance=year)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Навчальний рік оновлено.")
+            return redirect("school_access:classes")
+    else:
+        form = AcademicYearForm(instance=year)
+
+    context = {"active_page": "classes", "form": form, "year": year}
+    return render(request, "school_access/academic_year_form.html", context)
+
+
+@staff_member_required
+@require_POST
+def academic_year_delete_view(request, year_id):
+    year = get_object_or_404(AcademicYear, pk=year_id)
+    try:
+        year.delete()
+        messages.success(request, f"Навчальний рік «{year.name}» видалено.")
+    except ProtectedError:
+        messages.error(
+            request,
+            f"Не можна видалити «{year.name}» — до нього прив'язані класи.",
+        )
+    return redirect("school_access:classes")
+
+
+@staff_member_required
+def school_class_edit_view(request, class_id):
+    school_class = get_object_or_404(SchoolClass, pk=class_id)
+
+    if request.method == "POST":
+        form = SchoolClassForm(request.POST, instance=school_class)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Клас оновлено.")
+            return redirect("school_access:classes")
+    else:
+        form = SchoolClassForm(instance=school_class)
+
+    context = {"active_page": "classes", "form": form, "school_class": school_class}
+    return render(request, "school_access/school_class_form.html", context)
+
+
+@staff_member_required
+@require_POST
+def school_class_delete_view(request, class_id):
+    school_class = get_object_or_404(SchoolClass, pk=class_id)
+    try:
+        school_class.delete()
+        messages.success(request, f"Клас «{school_class.name}» видалено.")
+    except ProtectedError:
+        messages.error(
+            request,
+            f"Не можна видалити клас «{school_class.name}» — до нього прив'язані учні або відвідування.",
+        )
+    return redirect("school_access:classes")
+
+
+@staff_member_required
 def guard_view(request):
+    today = date_cls.today()
     students = (
         Student.objects.filter(status=Student.Status.ACTIVE)
         .prefetch_related("class_enrollments__school_class")
         .order_by("last_name", "first_name")
     )
-    rows = [
-        {"student": student, "school_class": students_service.current_class(student)}
-        for student in students
-    ]
+    attendance_by_student = {
+        row["student_id"]: row["last_exit_time"] is None
+        for row in AttendanceDaily.objects.filter(attendance_date=today).values(
+            "student_id", "last_exit_time"
+        )
+    }
+    rows = []
+    for student in students:
+        in_building = attendance_by_student.get(student.id)
+        if in_building is None:
+            status = "absent"
+        elif in_building:
+            status = "in_building"
+        else:
+            status = "exited"
+        rows.append(
+            {
+                "student": student,
+                "school_class": students_service.current_class(student),
+                "status": status,
+            }
+        )
 
     recent_entries = (
         AccessEvent.objects.filter(
             event_source=AccessEvent.EventSource.MANUAL_BY_GUARD,
-            event_time__date=date_cls.today(),
+            event_time__date=today,
         )
         .select_related("student")
         .order_by("-event_time")[:20]

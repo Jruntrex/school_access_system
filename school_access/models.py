@@ -7,19 +7,19 @@ from django.db.models import Q, UniqueConstraint
 
 
 class ActiveEndedStatus(models.TextChoices):
-    ACTIVE = "ACTIVE", "Active"
-    ENDED = "ENDED", "Ended"
+    ACTIVE = "ACTIVE", "Активний"
+    ENDED = "ENDED", "Завершений"
 
 
 class EndReason(models.TextChoices):
     """Shared by rfid_cards.deactivation_reason and
     rfid_card_assignments.end_reason."""
 
-    LOST = "LOST", "Lost"
-    DAMAGED = "DAMAGED", "Damaged"
-    REPLACED = "REPLACED", "Replaced"
-    STUDENT_LEFT = "STUDENT_LEFT", "Student left"
-    OTHER = "OTHER", "Other"
+    LOST = "LOST", "Загублена"
+    DAMAGED = "DAMAGED", "Пошкоджена"
+    REPLACED = "REPLACED", "Замінена"
+    STUDENT_LEFT = "STUDENT_LEFT", "Учень вибув"
+    OTHER = "OTHER", "Інше"
 
 
 def schema_table(name: str) -> str:
@@ -65,8 +65,8 @@ class AcademicYear(models.Model):
 
 class SchoolClass(models.Model):
     class Status(models.TextChoices):
-        ACTIVE = "ACTIVE", "Active"
-        INACTIVE = "INACTIVE", "Inactive"
+        ACTIVE = "ACTIVE", "Активний"
+        INACTIVE = "INACTIVE", "Неактивний"
 
     academic_year = models.ForeignKey(
         AcademicYear, on_delete=models.PROTECT, related_name="classes"
@@ -108,9 +108,9 @@ class SchoolClass(models.Model):
 
 class Student(models.Model):
     class Status(models.TextChoices):
-        ACTIVE = "ACTIVE", "Active"
-        INACTIVE = "INACTIVE", "Inactive"
-        LEFT_SCHOOL = "LEFT_SCHOOL", "Left school"
+        ACTIVE = "ACTIVE", "Активний"
+        INACTIVE = "INACTIVE", "Неактивний"
+        LEFT_SCHOOL = "LEFT_SCHOOL", "Вибув"
 
     last_name = models.CharField(max_length=100)
     first_name = models.CharField(max_length=100)
@@ -255,10 +255,10 @@ class StudentMealAssignment(models.Model):
 
 class RfidCard(models.Model):
     class Status(models.TextChoices):
-        ACTIVE = "ACTIVE", "Active"
-        LOST = "LOST", "Lost"
-        DAMAGED = "DAMAGED", "Damaged"
-        RETIRED = "RETIRED", "Retired"
+        ACTIVE = "ACTIVE", "Активна"
+        LOST = "LOST", "Загублена"
+        DAMAGED = "DAMAGED", "Пошкоджена"
+        RETIRED = "RETIRED", "Списана"
 
     card_uid_hash = models.CharField(max_length=128, unique=True)
     status = models.CharField(
@@ -362,13 +362,13 @@ class ReaderLocation(models.Model):
 
 class RfidReader(models.Model):
     class Purpose(models.TextChoices):
-        ENTER_SCHOOL = "ENTER_SCHOOL", "Enter school"
-        EXIT_SCHOOL = "EXIT_SCHOOL", "Exit school"
-        MEAL_TAKEN = "MEAL_TAKEN", "Meal taken"
+        ENTER_SCHOOL = "ENTER_SCHOOL", "Вхід до школи"
+        EXIT_SCHOOL = "EXIT_SCHOOL", "Вихід зі школи"
+        MEAL_TAKEN = "MEAL_TAKEN", "Отримання харчування"
 
     class Status(models.TextChoices):
-        ACTIVE = "ACTIVE", "Active"
-        INACTIVE = "INACTIVE", "Inactive"
+        ACTIVE = "ACTIVE", "Активний"
+        INACTIVE = "INACTIVE", "Неактивний"
 
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
@@ -401,19 +401,19 @@ class RfidReader(models.Model):
 
 class AccessEvent(models.Model):
     class EventType(models.TextChoices):
-        ENTER_SCHOOL = "ENTER_SCHOOL", "Enter school"
-        EXIT_SCHOOL = "EXIT_SCHOOL", "Exit school"
-        MEAL_TAKEN = "MEAL_TAKEN", "Meal taken"
+        ENTER_SCHOOL = "ENTER_SCHOOL", "Вхід до школи"
+        EXIT_SCHOOL = "EXIT_SCHOOL", "Вихід зі школи"
+        MEAL_TAKEN = "MEAL_TAKEN", "Отримання харчування"
 
     class EventSource(models.TextChoices):
-        RFID_READER = "RFID_READER", "RFID reader"
-        MANUAL_BY_GUARD = "MANUAL_BY_GUARD", "Manual (guard)"
+        RFID_READER = "RFID_READER", "RFID-зчитувач"
+        MANUAL_BY_GUARD = "MANUAL_BY_GUARD", "Вручну (охорона)"
 
     class EventStatus(models.TextChoices):
-        VALID = "VALID", "Valid"
-        UNKNOWN_CARD = "UNKNOWN_CARD", "Unknown card"
-        INACTIVE_CARD = "INACTIVE_CARD", "Inactive card"
-        NO_ACTIVE_ASSIGNMENT = "NO_ACTIVE_ASSIGNMENT", "No active assignment"
+        VALID = "VALID", "Дійсний"
+        UNKNOWN_CARD = "UNKNOWN_CARD", "Невідома картка"
+        INACTIVE_CARD = "INACTIVE_CARD", "Неактивна картка"
+        NO_ACTIVE_ASSIGNMENT = "NO_ACTIVE_ASSIGNMENT", "Немає активної прив'язки"
 
     event_time = models.DateTimeField()
     event_type = models.CharField(max_length=30, choices=EventType.choices)
@@ -508,6 +508,31 @@ class AttendanceDaily(models.Model):
         on_delete=models.PROTECT,
         related_name="+",
         db_column="first_entry_event_id",
+    )
+    # Denormalized "current state" for the toggle entry/exit reader: null while
+    # the student is inside, set to the most recent EXIT_SCHOOL scan time once
+    # they leave. Not part of school_access_schema.sql — additive, since the
+    # spec's access_events already carries EXIT_SCHOOL as a valid event_type.
+    last_exit_time = models.DateTimeField(null=True, blank=True)
+    # Updates on every re-entry (unlike first_entry_time, which the spec
+    # fixes at the day's first scan) — reports show this as "Час входу" so it
+    # reflects the current/most recent session, not just the morning arrival.
+    last_entry_time = models.DateTimeField(null=True, blank=True)
+    last_entry_event = models.ForeignKey(
+        AccessEvent,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_column="last_entry_event_id",
+        null=True,
+        blank=True,
+    )
+    last_exit_event = models.ForeignKey(
+        AccessEvent,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_column="last_exit_event_id",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

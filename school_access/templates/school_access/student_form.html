@@ -2,11 +2,15 @@
 {% block title %}{% if is_new %}Новий учень{% else %}Редагування учня{% endif %} — School Access{% endblock %}
 {% block content %}
 
-  <h1 class="text-2xl font-bold mb-4">
+  <div class="mb-5">
+    <a href="{% url 'school_access:students_list' %}" class="text-sm text-brand-600 hover:text-brand-700">← До списку учнів</a>
+  </div>
+
+  <h1 class="text-2xl font-bold text-brand-950 mb-5">
     {% if is_new %}Новий учень{% else %}Редагування: {{ student.last_name }} {{ student.first_name }}{% endif %}
   </h1>
 
-  <form method="post" class="bg-white border border-slate-200 rounded-lg p-5 max-w-lg space-y-4">
+  <form method="post" class="bg-white border border-slate-200 rounded-xl p-6 max-w-lg space-y-4 shadow-sm">
     {% csrf_token %}
 
     {% for field in form %}
@@ -20,15 +24,16 @@
     {% endfor %}
 
     <div class="flex gap-2 pt-2">
-      <button type="submit" class="px-4 py-2 rounded bg-indigo-600 text-white text-sm">Зберегти</button>
-      <a href="{% url 'school_access:students_list' %}" class="px-4 py-2 rounded bg-slate-200 text-sm">Скасувати</a>
+      <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition shadow-sm">Зберегти</button>
+      <a href="{% url 'school_access:students_list' %}" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition">Скасувати</a>
     </div>
   </form>
 
 <style>
   input[type=text], input[type=date], select, input[type=file] {
-    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.375rem;
-    padding: 0.4rem 0.6rem; font-size: 0.875rem;
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.5rem 0.7rem; font-size: 0.875rem;
   }
+  input[type=text]:focus, select:focus { outline: 2px solid #5c8ef2; outline-offset: 1px; border-color: #5c8ef2; }
 </style>
 {% endblock %}

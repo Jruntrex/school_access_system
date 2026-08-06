@@ -2,53 +2,85 @@
 {% block title %}Дашборд — School Access{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-1">Дашборд</h1>
-<p class="text-sm text-slate-500 mb-6">{{ today }}</p>
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-brand-950">Дашборд</h1>
+  <p class="text-sm text-slate-500 mt-0.5">{{ today }}</p>
+</div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
 
   <a href="{% url 'school_access:meal_report' %}"
-     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
-    <div class="text-3xl font-black text-emerald-600">{{ present_count }}</div>
-    <div class="text-sm text-slate-500 mt-1">Присутні сьогодні</div>
+     class="group block p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="flex items-center justify-between">
+      <div class="text-3xl font-black text-emerald-600">{{ present_count }}</div>
+      <div class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-100 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.58l7.3-7.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd" /></svg>
+      </div>
+    </div>
+    <div class="text-sm text-slate-500 mt-2">Присутні сьогодні</div>
   </a>
 
-  <div class="p-4 rounded-lg border border-slate-200 bg-white">
-    <div class="text-3xl font-black text-rose-500">{{ absent_count }}</div>
-    <div class="text-sm text-slate-500 mt-1">Відсутні сьогодні</div>
+  <div class="p-4 rounded-xl border border-slate-200 bg-white">
+    <div class="flex items-center justify-between">
+      <div class="text-3xl font-black text-rose-500">{{ absent_count }}</div>
+      <div class="w-9 h-9 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clip-rule="evenodd" /></svg>
+      </div>
+    </div>
+    <div class="text-sm text-slate-500 mt-2">Відсутні сьогодні</div>
   </div>
 
   <a href="{% url 'school_access:meal_report' %}"
-     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
-    <div class="text-3xl font-black text-indigo-600">{{ meal_count }}</div>
-    <div class="text-sm text-slate-500 mt-1">У харчовому списку</div>
+     class="group block p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="flex items-center justify-between">
+      <div class="text-3xl font-black text-brand-600">{{ meal_count }}</div>
+      <div class="w-9 h-9 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center group-hover:bg-brand-100 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M3 3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h1v9a1 1 0 1 0 2 0V7h1a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3Zm11-.75a.75.75 0 0 1 .75.75v3.5c0 1.06-.68 1.96-1.63 2.3l.13 6.45a1 1 0 1 1-2 .04l-.13-6.5A2.5 2.5 0 0 1 9.5 6.5V3a.75.75 0 0 1 1.5 0v3h.5V3a.75.75 0 0 1 1.5 0v3h.5V3a.75.75 0 0 1 .75-.75Z" /></svg>
+      </div>
+    </div>
+    <div class="text-sm text-slate-500 mt-2">У харчовому списку</div>
   </a>
 
   <a href="{% url 'school_access:card_assignment' %}"
-     class="block p-4 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
-    <div class="text-3xl font-black text-amber-600">{{ no_card_count }}</div>
-    <div class="text-sm text-slate-500 mt-1">Учнів без картки</div>
+     class="group block p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="flex items-center justify-between">
+      <div class="text-3xl font-black text-gold-600">{{ no_card_count }}</div>
+      <div class="w-9 h-9 rounded-full bg-gold-300/30 text-gold-600 flex items-center justify-center group-hover:bg-gold-300/50 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M2.5 4A1.5 1.5 0 0 0 1 5.5v9A1.5 1.5 0 0 0 2.5 16h15a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 4h-15ZM4 9h4a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2Z" /></svg>
+      </div>
+    </div>
+    <div class="text-sm text-slate-500 mt-2">Учнів без картки</div>
   </a>
 
-  <div class="p-4 rounded-lg border border-slate-200 bg-white">
-    <div class="text-3xl font-black {% if problematic_today %}text-rose-500{% else %}text-slate-300{% endif %}">
-      {{ problematic_today }}
+  <div class="p-4 rounded-xl border border-slate-200 bg-white">
+    <div class="flex items-center justify-between">
+      <div class="text-3xl font-black {% if problematic_today %}text-rose-500{% else %}text-slate-300{% endif %}">
+        {{ problematic_today }}
+      </div>
+      <div class="w-9 h-9 rounded-full {% if problematic_today %}bg-rose-50 text-rose-500{% else %}bg-slate-100 text-slate-300{% endif %} flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M8.48 2.75c.66-1.13 2.32-1.13 2.98 0l6.28 10.75c.67 1.14-.16 2.56-1.48 2.56H3.68c-1.32 0-2.15-1.42-1.48-2.56L8.48 2.75ZM10 7a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-1.5 0v-3A.75.75 0 0 1 10 7Zm0 6.5a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Z" clip-rule="evenodd" /></svg>
+      </div>
     </div>
-    <div class="text-sm text-slate-500 mt-1">Проблемні скани сьогодні</div>
+    <div class="text-sm text-slate-500 mt-2">Проблемні скани сьогодні</div>
   </div>
 
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
   <a href="{% url 'school_access:card_assignment' %}"
-     class="p-5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
-    <div class="font-semibold text-slate-800">RFID картки →</div>
-    <div class="text-sm text-slate-500 mt-1">Прив'язати або замінити картку учню</div>
+     class="p-5 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="font-semibold text-brand-950">RFID картки →</div>
+    <div class="text-sm text-slate-500 mt-1">Прив'язати, замінити або зняти картку учня</div>
   </a>
   <a href="{% url 'school_access:meal_report' %}"
-     class="p-5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition">
-    <div class="font-semibold text-slate-800">Харчовий звіт →</div>
+     class="p-5 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="font-semibold text-brand-950">Харчовий звіт →</div>
     <div class="text-sm text-slate-500 mt-1">Список присутніх учнів по класах, з експортом у CSV</div>
+  </a>
+  <a href="{% url 'school_access:attendance_report' %}"
+     class="p-5 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
+    <div class="font-semibold text-brand-950">Звіт присутності →</div>
+    <div class="text-sm text-slate-500 mt-1">Присутні/відсутні по класах, для адміністрації та бухгалтерії</div>
   </a>
 </div>
 

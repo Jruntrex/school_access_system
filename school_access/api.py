@@ -14,7 +14,7 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from school_access import selectors
-from school_access.models import Student
+from school_access.models import AccessEvent, Student
 from school_access.schemas import (
     AssignModeRequest,
     ConfirmAssignmentRequest,
@@ -54,10 +54,17 @@ def scan(request, payload: ScanRequest):
     event = events_service.process_scan_event(payload.uid, payload.reader_code)
     if event is None:
         return ScanResponse(mode="duplicate")
+    direction = None
+    if event.event_status == AccessEvent.EventStatus.VALID:
+        if event.event_type == AccessEvent.EventType.ENTER_SCHOOL:
+            direction = "ENTRY"
+        elif event.event_type == AccessEvent.EventType.EXIT_SCHOOL:
+            direction = "EXIT"
     return ScanResponse(
         mode="attendance",
         event_status=event.event_status,
         student=str(event.student) if event.student else None,
+        direction=direction,
     )
 
 
@@ -66,6 +73,14 @@ def manual_entry(request, payload: ManualEntryRequest):
     _require_staff(request)
     student = get_object_or_404(Student, pk=payload.student_id)
     events_service.process_manual_entry(student, notes=payload.notes)
+    return {"ok": True}
+
+
+@access_router.post("/manual-exit/", auth=django_auth, response=OkResponse)
+def manual_exit(request, payload: ManualEntryRequest):
+    _require_staff(request)
+    student = get_object_or_404(Student, pk=payload.student_id)
+    events_service.process_manual_exit(student, notes=payload.notes)
     return {"ok": True}
 
 
@@ -123,6 +138,20 @@ def present_report(request, report_date: date_cls = None):
 def absent_report(request, report_date: date_cls = None):
     report_date = report_date or date_cls.today()
     return {"date": str(report_date), "rows": list(selectors.absent_students(report_date))}
+
+
+@reports_router.get("/attendance-by-class/")
+def attendance_by_class_report(request, report_date: date_cls = None):
+    """Backs the live-updating /reports/attendance/ page (poll-based refresh,
+    no full page reload)."""
+    report_date = report_date or date_cls.today()
+    class_rows = selectors.attendance_by_class(report_date)
+    return {
+        "date": str(report_date),
+        "class_rows": class_rows,
+        "total_present": sum(row["present_count"] for row in class_rows),
+        "total_absent": sum(row["absent_count"] for row in class_rows),
+    }
 
 
 @reports_router.get("/problematic-events/")
