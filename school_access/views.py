@@ -2,15 +2,17 @@ import csv
 from datetime import date as date_cls
 
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.db.models import ProtectedError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from school_access import selectors
+from school_access.auth import admin_required
 from school_access.forms import (
     AcademicYearForm,
+    DailyReportSettingsForm,
     SchoolClassForm,
     StudentForm,
     StudentImportForm,
@@ -19,15 +21,36 @@ from school_access.models import (
     AcademicYear,
     AccessEvent,
     AttendanceDaily,
+    DailyReportSettings,
     RfidCardAssignment,
     SchoolClass,
     Student,
 )
 from school_access.services import students as students_service
 from school_access.services.imports import import_students, parse_csv_rows
+from school_access.services.telegram_report import TelegramConfigError, send_daily_report
 
 
-@staff_member_required
+def public_landing_view(request):
+    if request.user.is_authenticated:
+        return redirect("school_access:dashboard")
+    
+    today = date_cls.today()
+    class_rows = selectors.attendance_by_class(today)
+    total_present = sum(row["present_count"] for row in class_rows)
+    total_absent = sum(row["absent_count"] for row in class_rows)
+
+    context = {
+        "active_page": "public_landing",
+        "today": today,
+        "class_rows": class_rows,
+        "total_present": total_present,
+        "total_absent": total_absent,
+    }
+    return render(request, "school_access/public_landing.html", context)
+
+
+@login_required
 def dashboard_view(request):
     today = date_cls.today()
 
@@ -51,7 +74,7 @@ def dashboard_view(request):
     return render(request, "school_access/dashboard.html", context)
 
 
-@staff_member_required
+@admin_required
 def card_assignment_view(request):
     students = (
         Student.objects.filter(status=Student.Status.ACTIVE)
@@ -84,7 +107,7 @@ def card_assignment_view(request):
     return render(request, "school_access/card_assignment.html", context)
 
 
-@staff_member_required
+@admin_required
 def meal_report_view(request):
     report_date_str = request.GET.get("date")
     report_date = (
@@ -114,7 +137,7 @@ def meal_report_view(request):
     return render(request, "school_access/meal_report.html", context)
 
 
-@staff_member_required
+@admin_required
 def attendance_report_view(request):
     report_date_str = request.GET.get("date")
     report_date = (
@@ -160,7 +183,7 @@ def attendance_report_view(request):
     return render(request, "school_access/attendance_report.html", context)
 
 
-@staff_member_required
+@admin_required
 def students_list_view(request):
     students = (
         Student.objects.all()
@@ -181,7 +204,7 @@ def students_list_view(request):
     return render(request, "school_access/students_list.html", context)
 
 
-@staff_member_required
+@admin_required
 def student_create_view(request):
     if request.method == "POST":
         form = StudentForm(request.POST)
@@ -202,7 +225,7 @@ def student_create_view(request):
     return render(request, "school_access/student_form.html", context)
 
 
-@staff_member_required
+@admin_required
 def student_edit_view(request, student_id):
     student = get_object_or_404(Student, pk=student_id)
 
@@ -239,7 +262,7 @@ def student_edit_view(request, student_id):
     return render(request, "school_access/student_form.html", context)
 
 
-@staff_member_required
+@admin_required
 def students_import_view(request):
     result = None
     if request.method == "POST":
@@ -256,7 +279,7 @@ def students_import_view(request):
     return render(request, "school_access/students_import.html", context)
 
 
-@staff_member_required
+@admin_required
 def classes_view(request):
     if request.method == "POST":
         if request.POST.get("form") == "academic_year":
@@ -287,7 +310,7 @@ def classes_view(request):
     return render(request, "school_access/classes.html", context)
 
 
-@staff_member_required
+@admin_required
 def academic_year_edit_view(request, year_id):
     year = get_object_or_404(AcademicYear, pk=year_id)
 
@@ -304,7 +327,7 @@ def academic_year_edit_view(request, year_id):
     return render(request, "school_access/academic_year_form.html", context)
 
 
-@staff_member_required
+@admin_required
 @require_POST
 def academic_year_delete_view(request, year_id):
     year = get_object_or_404(AcademicYear, pk=year_id)
@@ -319,7 +342,7 @@ def academic_year_delete_view(request, year_id):
     return redirect("school_access:classes")
 
 
-@staff_member_required
+@admin_required
 def school_class_edit_view(request, class_id):
     school_class = get_object_or_404(SchoolClass, pk=class_id)
 
@@ -336,7 +359,7 @@ def school_class_edit_view(request, class_id):
     return render(request, "school_access/school_class_form.html", context)
 
 
-@staff_member_required
+@admin_required
 @require_POST
 def school_class_delete_view(request, class_id):
     school_class = get_object_or_404(SchoolClass, pk=class_id)
@@ -351,7 +374,7 @@ def school_class_delete_view(request, class_id):
     return redirect("school_access:classes")
 
 
-@staff_member_required
+@login_required
 def guard_view(request):
     today = date_cls.today()
     students = (
@@ -393,3 +416,35 @@ def guard_view(request):
 
     context = {"active_page": "guard", "rows": rows, "recent_entries": recent_entries}
     return render(request, "school_access/guard.html", context)
+
+
+@admin_required
+def settings_view(request):
+    report_settings = DailyReportSettings.load()
+
+    if request.method == "POST":
+        if request.POST.get("action") == "send_now":
+            try:
+                send_daily_report(date_cls.today())
+            except TelegramConfigError as exc:
+                messages.error(request, str(exc))
+            else:
+                report_settings.last_sent_on = date_cls.today()
+                report_settings.save(update_fields=["last_sent_on"])
+                messages.success(request, "Звіт надіслано в Telegram.")
+            return redirect("school_access:settings")
+
+        form = DailyReportSettingsForm(request.POST, instance=report_settings)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Налаштування збережено.")
+            return redirect("school_access:settings")
+    else:
+        form = DailyReportSettingsForm(instance=report_settings)
+
+    context = {
+        "active_page": "settings",
+        "form": form,
+        "report_settings": report_settings,
+    }
+    return render(request, "school_access/settings.html", context)

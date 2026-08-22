@@ -1,6 +1,12 @@
 from django import forms
 
-from school_access.models import AcademicYear, MealOption, SchoolClass, Student
+from school_access.models import (
+    AcademicYear,
+    DailyReportSettings,
+    MealOption,
+    SchoolClass,
+    Student,
+)
 
 
 class StudentForm(forms.Form):
@@ -61,6 +67,19 @@ class SchoolClassForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class DailyReportSettingsForm(forms.ModelForm):
+    class Meta:
+        model = DailyReportSettings
+        fields = ["send_time", "is_enabled"]
+        widgets = {
+            "send_time": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+        }
+        labels = {
+            "send_time": "Час надсилання звіту",
+            "is_enabled": "Щоденний звіт увімкнено",
+        }
 
 
 class StudentImportForm(forms.Form):

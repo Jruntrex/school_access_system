@@ -95,6 +95,13 @@ CARD_SCAN_API_KEY = os.getenv("CARD_SCAN_API_KEY", "")
 # Must never be the same value that is deployed onto reader firmware.
 CARD_UID_HASH_SECRET = os.getenv("CARD_UID_HASH_SECRET", "")
 
+# Telegram Bot API — used by the `send_daily_report` management command
+# (school_access/services/telegram_report.py) to post the daily attendance
+# report. Create a bot via @BotFather to get the token; the chat_id is the
+# numeric id of the user/group/channel that should receive the report.
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -124,8 +131,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "/admin/login/"
-LOGIN_REDIRECT_URL = "/admin/"
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/login/"
 
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)

@@ -4,6 +4,7 @@ from school_access.models import (
     AcademicYear,
     AccessEvent,
     AttendanceDaily,
+    DailyReportSettings,
     MealOption,
     ReaderLocation,
     RfidCard,
@@ -133,3 +134,8 @@ class AttendanceDailyAdmin(admin.ModelAdmin):
     search_fields = ("student__last_name", "student__first_name")
     ordering = ("-attendance_date",)
     date_hierarchy = "attendance_date"
+
+
+@admin.register(DailyReportSettings)
+class DailyReportSettingsAdmin(admin.ModelAdmin):
+    list_display = ("send_time", "is_enabled", "last_sent_on", "updated_at")

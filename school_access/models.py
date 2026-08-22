@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 
@@ -560,3 +562,29 @@ class AttendanceDaily(models.Model):
 
     def __str__(self) -> str:
         return f"{self.student} present on {self.attendance_date}"
+
+
+# ==========================================
+# 13. daily_report_settings (additive — not in school_access_schema.sql)
+# ==========================================
+
+
+class DailyReportSettings(models.Model):
+    """Singleton (pk=1): admin-configured time for the daily Telegram
+    attendance report sent by the `send_daily_report` management command."""
+
+    send_time = models.TimeField(default=time(16, 0))
+    is_enabled = models.BooleanField(default=True)
+    last_sent_on = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = schema_table("daily_report_settings")
+
+    def __str__(self) -> str:
+        return f"Щоденний звіт о {self.send_time:%H:%M}"
+
+    @classmethod
+    def load(cls) -> "DailyReportSettings":
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

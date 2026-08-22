@@ -17,11 +17,24 @@ Ninja + PostgreSQL.
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # і за потреби відредагуй значення
+cp .env.example .env          # і за потреби відредагуй значення (в т.ч. TELEGRAM_*)
 docker compose up -d          # піднімає Postgres на localhost:5432
 python manage.py migrate      # створює схему school_access + довідники
-python manage.py createsuperuser
+python manage.py seed_users   # створює хардкоджені акаунти admin/guard (див. нижче)
 ```
+
+## Ролі та вхід
+
+Немає самореєстрації — два хардкоджені акаунти, створені `seed_users`:
+
+| Роль | Логін | Пароль (дефолт) | Доступ |
+|---|---|---|---|
+| Адмін | `admin` | `Admin#2026` | Все: дашборд + CRUD (учні, класи, охорона, картки, звіти, налаштування) + `/admin/` |
+| Охорона | `guard` | `Guard#2026` | Лише `/` (дашборд), read-only |
+
+Вхід — `/login/` (кастомна форма, не `/admin/login/`). Змінити паролі:
+`python manage.py seed_users --admin-password "..." --guard-password "..."`,
+або через `/admin/` (доступний лише `admin`, бо тільки в нього `is_staff`/`is_superuser`).
 
 ## Запуск (2 термінали)
 
@@ -52,7 +65,49 @@ python manage.py import_students students.csv --academic-year "2026/2027"
 | `/guard/` | Ручний запис входу (без картки) |
 | `/cards/` | Прив'язка/заміна RFID-картки |
 | `/reports/meal/` | Харчовий звіт по класах + CSV-експорт |
-| `/admin/` | Django admin — CRUD усіх 12 таблиць |
+| `/settings/` | Час щоденного Telegram-звіту, кнопка "надіслати зараз" |
+| `/admin/` | Django admin — CRUD усіх таблиць |
+
+Усі сторінки, крім дашборду, доступні лише `admin` (див. "Ролі та вхід").
+
+## Щоденний звіт у Telegram
+
+Кожного дня, коли настає час, вказаний на `/settings/` (адміном), і звіт
+за сьогодні ще не надсилався, команда `send_daily_report` формує та шле в
+Telegram повідомлення виду:
+
+```
+Звіт відвідуваності — 07.08.2026
+
+Клас - 5-А
+Кількість - 23
+Клас - 5-Б
+Кількість - 19
+
+Загалом: 42
+```
+
+"Кількість" — учні, присутні за даними охорони (`AttendanceDaily`) на
+момент запуску команди.
+
+Команда сама по собі нічого не планує — вона лише перевіряє, чи настав
+час, і виходить, якщо ні, або якщо вже надсилала сьогодні. Тому її треба
+запускати періодично (кожні 5 хв) через **Windows Task Scheduler**:
+
+```powershell
+schtasks /create /tn "SchoolRFID Daily Report" /sc minute /mo 5 ^
+  /tr "\"C:\path\to\venv\Scripts\python.exe\" \"C:\Users\user\My_Works\SCHOOL-RFID\manage.py\" send_daily_report" ^
+  /st 07:00
+```
+
+(Онови шлях до `python.exe` під свій venv, і `/st` — час, з якого Task
+Scheduler починає день опитувань.) Або через GUI: Task Scheduler →
+Create Task → Trigger "Daily, repeat every 5 minutes" → Action "Start a
+program" → вкажи `python.exe` і аргументи `manage.py send_daily_report`
+з робочою директорією проєкту.
+
+Налаштування бота — `TELEGRAM_BOT_TOKEN` (від @BotFather) і
+`TELEGRAM_CHAT_ID` в `.env` (див. `.env.example`).
 
 ## Імпорт учнів (CSV)
 
@@ -98,13 +153,16 @@ python manage.py import_students students.csv --academic-year "2026/2027"
 ```
 school_rfid_project/   # settings, urls, wsgi
 school_access/
-  models.py             # 12 таблиць схеми school_access
+  models.py             # 12 таблиць схеми school_access + DailyReportSettings
   admin.py               # Django admin для всіх моделей
-  selectors.py             # звітні запити (харчовий звіт, присутні/відсутні, ...)
-  services/                 # бізнес-логіка: scan-обробка, картки, учні, імпорт
-  api.py                     # Django Ninja: /api/access/*, /api/cards/*, /api/reports/*
-  views.py, urls.py           # сторінки: дашборд, учні, класи, охорона, картки, звіт
-  management/commands/         # import_students
+  auth.py                 # admin_required — гейт для CRUD-сторінок (роль admin)
+  selectors.py              # звітні запити (харчовий звіт, присутні/відсутні, ...)
+  services/                  # бізнес-логіка: scan-обробка, картки, учні, імпорт,
+                              # telegram_report (щоденний звіт)
+  api.py                      # Django Ninja: /api/access/*, /api/cards/*, /api/reports/*
+  views.py, urls.py            # сторінки: дашборд, логін, учні, класи, охорона,
+                                # картки, звіти, налаштування
+  management/commands/          # import_students, seed_users, send_daily_report
 firmware/school-rfid/          # прошивка ESP32
 school_access_schema.sql       # еталонна SQL-специфікація
 docker-compose.yml              # локальний Postgres

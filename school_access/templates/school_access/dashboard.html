@@ -67,6 +67,7 @@
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  {% if request.user.is_superuser %}
   <a href="{% url 'school_access:card_assignment' %}"
      class="p-5 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">
     <div class="font-semibold text-brand-950">RFID картки →</div>
@@ -82,6 +83,13 @@
     <div class="font-semibold text-brand-950">Звіт присутності →</div>
     <div class="text-sm text-slate-500 mt-1">Присутні/відсутні по класах, для адміністрації та бухгалтерії</div>
   </a>
+  {% else %}
+  <a href="{% url 'school_access:guard' %}"
+     class="p-5 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition sm:col-span-2 text-center">
+    <div class="font-semibold text-brand-950 text-lg">Ручний запис входу/виходу (Охорона) →</div>
+    <div class="text-sm text-slate-500 mt-1">Відмітити учня, який прийшов без картки</div>
+  </a>
+  {% endif %}
 </div>
 
 {% endblock %}

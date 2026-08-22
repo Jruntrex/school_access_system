@@ -1,0 +1,64 @@
+{% extends "school_access/base.html" %}
+{% block title %}Налаштування — School Access{% endblock %}
+{% block content %}
+
+  <h1 class="text-2xl font-bold text-brand-950 mb-5">Налаштування</h1>
+
+  <div class="bg-white border border-slate-200 rounded-xl p-6 max-w-md shadow-sm">
+    <h2 class="text-lg font-semibold text-brand-950 mb-1">Щоденний звіт у Telegram</h2>
+    <p class="text-sm text-slate-500 mb-4">
+      Кожного дня о вказаний час, якщо він ще не надсилався сьогодні,
+      бот надішле звіт присутності по класах у Telegram.
+    </p>
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="{% if field.name == 'is_enabled' %}flex items-center gap-2{% endif %}">
+          {% if field.name == 'is_enabled' %}
+            {{ field }}
+            <label class="text-sm font-medium text-slate-700">{{ field.label }}</label>
+          {% else %}
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
+          {% if field.errors %}
+            <p class="text-xs text-rose-600 mt-1">{{ field.errors|striptags }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition shadow-sm">Зберегти</button>
+      </div>
+    </form>
+
+    <hr class="my-5 border-slate-200">
+
+    <div class="text-sm text-slate-500 mb-3">
+      Востаннє надіслано:
+      {% if report_settings.last_sent_on %}
+        <span class="text-slate-700 font-medium">{{ report_settings.last_sent_on }}</span>
+      {% else %}
+        <span class="text-slate-400">ще не надсилався</span>
+      {% endif %}
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="send_now">
+      <button type="submit" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition">
+        Надіслати звіт зараз
+      </button>
+    </form>
+  </div>
+
+<style>
+  input[type=time] {
+    border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.5rem 0.7rem; font-size: 0.875rem;
+  }
+  input:focus { outline: 2px solid #5c8ef2; outline-offset: 1px; border-color: #5c8ef2; }
+  input[type=checkbox] { width: 1rem; height: 1rem; }
+</style>
+{% endblock %}
