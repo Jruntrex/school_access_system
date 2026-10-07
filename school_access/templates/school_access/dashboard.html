@@ -4,10 +4,10 @@
 
 <div class="mb-6">
   <h1 class="text-2xl font-bold text-brand-950">Дашборд</h1>
-  <p class="text-sm text-slate-500 mt-0.5">{{ today }}</p>
+  <p id="dashboard-date" data-live class="text-sm text-slate-500 mt-0.5">{{ today }}</p>
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+<div id="dashboard-stats" data-live class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
 
   <a href="{% url 'school_access:meal_report' %}"
      class="group block p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 hover:shadow-lg hover:shadow-brand-900/5 transition">

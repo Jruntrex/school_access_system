@@ -212,6 +212,12 @@ void setup() {
 }
 
 void loop() {
+  static unsigned long lastHeartbeat = 0;
+  if (millis() - lastHeartbeat > 5000) {
+    Serial.println("HEARTBEAT");
+    lastHeartbeat = millis();
+  }
+
   uint8_t uid[7] = {0};
   uint8_t uidLength;
 

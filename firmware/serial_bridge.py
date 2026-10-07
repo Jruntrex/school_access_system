@@ -56,37 +56,69 @@ def main(port: str) -> None:
         print("[ERROR] CARD_SCAN_API_KEY missing from .env")
         sys.exit(1)
 
-    ser = serial.Serial(port, BAUD_RATE, timeout=1)
-    print(f"Listening on {port} -- forwarding scans to {SERVER_URL}")
+    server_url = ENV.get("SERVER_URL", SERVER_URL)
+    print(f"Watchdog Serial Bridge starting. Port: {port}, Server: {server_url}")
 
     while True:
-        line = ser.readline().decode(errors="ignore").strip()
-        if not line:
-            continue
-        if not line.startswith("UID:"):
-            print(f"[device] {line}")
-            continue
-
-        uid = line[len("UID:"):]
-        timestamp = str(int(time.time()))
-        signature = sign(uid, timestamp)
-
         try:
-            resp = requests.post(
-                SERVER_URL,
-                json={"uid": uid, "reader_code": READER_CODE},
-                headers={"X-Timestamp": timestamp, "X-Signature": signature},
-                timeout=5,
-            )
-            print(f"UID {uid} -> HTTP {resp.status_code}: {resp.text}")
+            print(f"Connecting to {port}...")
+            ser = serial.Serial(port, BAUD_RATE, timeout=1)
+            print(f"Connected to {port} -- Listening for scans/heartbeats...")
+            
+            last_activity = time.time()
+            
+            while True:
+                line = ser.readline().decode(errors="ignore").strip()
+                current_time = time.time()
+                
+                if line:
+                    last_activity = current_time
+                    if line == "HEARTBEAT":
+                        # Print heartbeat with local time to show health status
+                        print(f"[{time.strftime('%H:%M:%S')}] [WATCHDOG] Heartbeat received.")
+                        continue
+                    
+                    if not line.startswith("UID:"):
+                        print(f"[device] {line}")
+                        continue
 
-            direction = None
-            if resp.ok:
-                direction = resp.json().get("direction")
-            if direction in ("ENTRY", "EXIT"):
-                ser.write(f"{direction}\n".encode())
-        except requests.RequestException as exc:
-            print(f"[ERROR] {exc}")
+                    uid = line[len("UID:"):]
+                    timestamp = str(int(time.time()))
+                    signature = sign(uid, timestamp)
+
+                    try:
+                        resp = requests.post(
+                            server_url,
+                            json={"uid": uid, "reader_code": READER_CODE},
+                            headers={"X-Timestamp": timestamp, "X-Signature": signature},
+                            timeout=5,
+                        )
+                        print(f"[{time.strftime('%H:%M:%S')}] UID {uid} -> HTTP {resp.status_code}: {resp.text}")
+
+                        direction = None
+                        if resp.ok:
+                            direction = resp.json().get("direction")
+                        if direction in ("ENTRY", "EXIT"):
+                            ser.write(f"{direction}\n".encode())
+                    except requests.RequestException as exc:
+                        print(f"[ERROR] API request failed: {exc}")
+                
+                # Watchdog check: if no activity for 15 seconds, reset board
+                if current_time - last_activity > 15:
+                    print(f"\n[{time.strftime('%H:%M:%S')}] [WATCHDOG] No activity for 15 seconds. Resetting ESP32 board...")
+                    # Toggle DTR/RTS to reset the board
+                    ser.dtr = False
+                    ser.rts = True
+                    time.sleep(0.1)
+                    ser.dtr = True
+                    ser.rts = False
+                    time.sleep(0.5)
+                    last_activity = time.time()
+
+        except (serial.SerialException, OSError) as exc:
+            print(f"[CONNECTION ERROR] Serial error on {port}: {exc}")
+            print("Retrying connection in 3 seconds...")
+            time.sleep(3)
 
 
 if __name__ == "__main__":

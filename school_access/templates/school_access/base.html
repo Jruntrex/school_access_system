@@ -95,7 +95,6 @@
            class="px-3 py-2 rounded-md transition {% if active_page == 'settings' %}bg-white/10 text-gold-400 font-medium{% else %}text-brand-100 hover:bg-white/5 hover:text-white{% endif %}">
           Налаштування
         </a>
-        <a href="/admin/" class="px-3 py-2 rounded-md text-brand-100 hover:bg-white/5 hover:text-white transition">Адмінка</a>
         {% endif %}
         <span class="w-px h-5 bg-white/15 mx-1.5"></span>
         {% if request.user.is_authenticated %}
@@ -133,6 +132,36 @@
   <footer class="text-center text-xs text-slate-400 py-4">
     School Access — RFID облік відвідуваності та харчування
   </footer>
+
+<script>
+// Автооновлення: блоки з data-live (і унікальним id) кожні 4 с
+// перезавантажуються з серверного HTML поточної сторінки, без перезавантаження вкладки.
+(function () {
+  const liveIds = [...document.querySelectorAll('[data-live][id]')].map(el => el.id);
+  if (!liveIds.length) return;
+
+  async function refreshLive() {
+    if (document.hidden) return;
+    try {
+      const res = await fetch(location.href, {headers: {'X-Requested-With': 'live-refresh'}});
+      if (!res.ok || res.redirected) return;
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      for (const id of liveIds) {
+        const current = document.getElementById(id);
+        const fresh = doc.getElementById(id);
+        if (current && fresh && current.innerHTML !== fresh.innerHTML) {
+          current.innerHTML = fresh.innerHTML;
+        }
+      }
+    } catch (err) {
+      // мережева пауза — спробуємо ще раз на наступному тику
+    }
+  }
+
+  setInterval(refreshLive, 4000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLive(); });
+})();
+</script>
 
 </body>
 </html>

@@ -68,6 +68,22 @@ def scan(request, payload: ScanRequest):
     )
 
 
+@access_router.get("/attendance-status/")
+def attendance_status(request):
+    timestamp = request.headers.get("X-Timestamp", "")
+    signature = request.headers.get("X-Signature", "")
+    if not verify_device_signature("ATTENDANCE", timestamp, signature):
+        raise HttpError(403, "Invalid signature")
+
+    class_rows = selectors.attendance_by_class(date_cls.today())
+    return {
+        "date": str(date_cls.today()),
+        "class_rows": class_rows,
+        "total_present": sum(row["present_count"] for row in class_rows),
+        "total_absent": sum(row["absent_count"] for row in class_rows),
+    }
+
+
 @access_router.post("/manual/", auth=django_auth, response=OkResponse)
 def manual_entry(request, payload: ManualEntryRequest):
     _require_staff(request)
